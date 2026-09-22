@@ -8,7 +8,7 @@ Digital Twin Challenge 2026 (Happiest Health) submission.
 - modules/metabolic/ — metabolic risk module
 - modules/dermatology/ — dermatology module (optional/stretch)
 - data/ — datasets and synthetic data
-- dashboard/ — Streamlit dashboard tabs
+- dashboard/ — Streamlit dashboard tabs (cardiac_tab.py: live monitor, done)
 - docs/ — methodology, architecture docs
 
 ## Setup
