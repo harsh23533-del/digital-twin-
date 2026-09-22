@@ -5,3 +5,4 @@ __pycache__/
 venv/
 *.onnx
 .DS_Store
+modules/cardiac/artifacts/

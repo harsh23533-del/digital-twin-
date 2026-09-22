@@ -3,6 +3,8 @@ pandas
 numpy
 xgboost
 shap
+scikit-learn
+joblib
 plotly
 onnxruntime
 Pillow
