@@ -5,7 +5,7 @@ Digital Twin Challenge 2026 (Happiest Health) submission.
 ## Structure
 - twin_engine/ — core patient-state engine and scheduler
 - modules/cardiac/ — cardiac risk module
-- modules/metabolic/ — metabolic risk module
+- modules/metabolic/ — metabolic risk module (rule-based reference-range scorer + trend detection, done)
 - modules/dermatology/ — dermatology module (optional/stretch)
 - data/ — datasets and synthetic data
 - dashboard/ — Streamlit dashboard tabs (cardiac_tab.py: live monitor, done)
