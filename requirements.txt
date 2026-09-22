@@ -7,4 +7,6 @@ scikit-learn
 joblib
 plotly
 onnxruntime
+skl2onnx
+onnx
 Pillow

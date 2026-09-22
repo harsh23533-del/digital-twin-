@@ -6,3 +6,4 @@ venv/
 *.onnx
 .DS_Store
 modules/cardiac/artifacts/
+modules/dermatology/artifacts/

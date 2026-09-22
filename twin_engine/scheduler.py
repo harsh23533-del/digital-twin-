@@ -10,10 +10,13 @@ by replacing `_dummy_route_to_modules`.
 import random
 import time
 import logging
+import numpy as np
 from twin_engine.patient_state import PatientState
 from modules.cardiac.cardiac_module import CardiacModule
 from modules.metabolic.metabolic_module import MetabolicModule
 from modules.dermatology.dermatology_module import DermatologyModule
+from modules.dermatology.synthetic_data import generate_image, CLASSES
+from modules.dermatology.model import MALIGNANCY_WEIGHT
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger("twin_engine")
@@ -39,8 +42,16 @@ class DummySimulator:
         "hba1c": (5.4, (4.5, 9.5), 0.1),
     }
 
+    # Classes ordered by malignancy weight — used to turn a slowly-drifting
+    # 0-1 "skin severity" random walk into a class to render, so successive
+    # images for one patient tell a coherent progression story instead of
+    # jumping randomly between unrelated conditions each tick.
+    _SEVERITY_ORDER = sorted(CLASSES, key=lambda c: MALIGNANCY_WEIGHT[c])
+
     def __init__(self):
         self._lab_state = {m: start for m, (start, _, _) in self._LAB_WALK_SPEC.items()}
+        self._skin_severity = 0.08  # starts near "healthy"
+        self._img_rng = np.random.default_rng()
 
     def next_reading(self, patient_id: str, tick_count: int) -> tuple[str, dict]:
         reading_type = self._reading_types[tick_count % len(self._reading_types)]
@@ -53,7 +64,7 @@ class DummySimulator:
         elif reading_type == "lab":
             reading = self._next_lab_reading()
         else:  # image
-            reading = {"image_ref": f"{patient_id}_skin_{tick_count}.jpg"}
+            reading = self._next_image_reading(patient_id, tick_count)
 
         return reading_type, reading
 
@@ -62,6 +73,20 @@ class DummySimulator:
             value = self._lab_state[marker] + random.uniform(-step, step)
             self._lab_state[marker] = round(max(lo, min(hi, value)), 2)
         return dict(self._lab_state)
+
+    def _next_image_reading(self, patient_id: str, tick_count: int) -> dict:
+        """Render a real synthetic lesion image (see modules/dermatology/synthetic_data.py).
+
+        `_skin_severity` random-walks in [0, 1]; the nearest class by
+        malignancy weight is rendered, so the classifier is always fed a
+        genuine image — never a ground-truth label — and successive images
+        for a patient drift smoothly instead of jumping between conditions.
+        """
+        self._skin_severity = max(0.0, min(1.0, self._skin_severity + random.uniform(-0.04, 0.05)))
+        cls = min(self._SEVERITY_ORDER, key=lambda c: abs(MALIGNANCY_WEIGHT[c] - self._skin_severity))
+
+        image, _params = generate_image(cls, self._img_rng)
+        return {"image_ref": f"{patient_id}_skin_{tick_count}.jpg", "image": image}
 
 
 def tick(
@@ -83,7 +108,8 @@ def tick(
     elif reading_type == "image":
         dermatology.process(state)
 
-    logger.info(f"tick {tick_count:03d} | +{reading_type} {reading} | {state.summary()}")
+    log_reading = {k: v for k, v in reading.items() if k != "image"} if reading_type == "image" else reading
+    logger.info(f"tick {tick_count:03d} | +{reading_type} {log_reading} | {state.summary()}")
 
 
 def run(patient_id: str = "patient_001", n_ticks: int = 10, interval_sec: float = 0.5) -> PatientState:
