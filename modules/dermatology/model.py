@@ -26,7 +26,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 
 from modules.dermatology.synthetic_data import (
-    generate_dataset, extract_features, CLASSES, FEATURE_NAMES,
+    generate_dataset, extract_features, CLASSES,
 )
 
 _HERE = os.path.dirname(os.path.abspath(__file__))

@@ -5,10 +5,11 @@ Demoable end to end for a single simulated patient:
 - Latest uploaded image reference + classification result (label, confidence)
 - Progression timeline: malignancy score across past images
 
-Uses the placeholder classifier in modules/dermatology/model.py — see that
-file's docstring for why (no DermNet dataset / existing ONNX model was
-available to reuse for this stretch module). Swapping in a real ONNX
-model later only requires replacing that one file.
+Uses the real ONNX classifier in modules/dermatology/model.py, trained on
+synthetic ABCD-rule dermoscopy images — see that file's docstring for why
+(no DermNet dataset access in this build environment). Swapping in a real
+DermNet-trained model later only requires replacing that one file's
+training data source.
 
 Runnable standalone for now (already wired into the unified app.py, Step 9):
     streamlit run dashboard/dermatology_tab.py
@@ -22,8 +23,7 @@ from PIL import Image
 from twin_engine.patient_state import PatientState
 from twin_engine.scheduler import DummySimulator
 from modules.dermatology.dermatology_module import DermatologyModule
-
-DERM_ALERT_THRESHOLD = 0.5  # malignancy score at/above which the banner turns red
+from config import DERM_ALERT_THRESHOLD  # malignancy score at/above which the banner turns red
 
 LABEL_DESCRIPTIONS = {
     "healthy": "No abnormal findings.",

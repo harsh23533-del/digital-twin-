@@ -25,11 +25,9 @@ from modules.metabolic.metabolic_module import MetabolicModule
 from modules.metabolic.model import REFERENCE_RANGES, DOMAIN_MARKERS
 from modules.dermatology.dermatology_module import DermatologyModule
 
-st.set_page_config(page_title="MediTwin", layout="wide", page_icon="🩺")
+from config import CARDIAC_ALERT_THRESHOLD, DOMAIN_ALERT_THRESHOLD, DERM_ALERT_THRESHOLD
 
-CARDIAC_ALERT_THRESHOLD = 0.6
-DOMAIN_ALERT_THRESHOLD = 0.5
-DERM_ALERT_THRESHOLD = 0.5
+st.set_page_config(page_title="MediTwin", layout="wide", page_icon="🩺")
 
 MARKER_UNITS = {
     "creatinine": "mg/dL", "egfr": "mL/min/1.73m²", "alt": "U/L",
@@ -197,7 +195,8 @@ with tab_metabolic:
         for col, domain in zip((d1, d2, d3), ("kidney", "liver", "glucose")):
             score = domain_scores.get(domain, 0.0)
             with col:
-                (st.error if score >= DOMAIN_ALERT_THRESHOLD else st.success)(f"{domain.title()}: {score:.2f}")
+                banner = st.error if score >= DOMAIN_ALERT_THRESHOLD else st.success
+                banner(f"{domain.title()}: {score:.2f}")
         st.caption(f"Overall metabolic risk: **{latest_risk['score']:.2f}**")
 
         explanation = latest_risk["explanation"]
@@ -246,7 +245,10 @@ with tab_derm:
             st.error(f"⚠️ {label} (malignancy score {score:.2f}, confidence {confidence:.0%})")
         else:
             st.success(f"{label} (malignancy score {score:.2f}, confidence {confidence:.0%})")
-        st.caption("Placeholder classifier — no real DermNet/ONNX model wired yet (see modules/dermatology/model.py).")
+        st.caption(
+            "ONNX MLP classifier trained on synthetic ABCD-rule dermoscopy images "
+            "(no DermNet dataset access in this build environment — see docs/methodology.md)."
+        )
 
         history = p["risk_history"]["dermatology"]
         if history:

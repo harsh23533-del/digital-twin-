@@ -8,7 +8,7 @@ plus a per-marker worsening/improving/stable read — the metabolic
 counterpart to the cardiac module's SHAP explanation.
 """
 
-from modules.metabolic.model import REFERENCE_RANGES, score_all, domain_scores
+from modules.metabolic.model import score_all, domain_scores
 from modules.metabolic.trend import detect_trends
 
 

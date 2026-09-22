@@ -19,7 +19,8 @@ from twin_engine.patient_state import PatientState
 from twin_engine.scheduler import DummySimulator
 from modules.cardiac.cardiac_module import CardiacModule
 
-RISK_ALERT_THRESHOLD = 0.6  # TODO: move to per-patient EHR profile once multi-patient (Step 9) lands
+from config import CARDIAC_ALERT_THRESHOLD as RISK_ALERT_THRESHOLD
+# TODO: move to per-patient EHR profile once multi-patient (Step 9) lands
 
 st.set_page_config(page_title="MediTwin — Cardiac", layout="wide")
 

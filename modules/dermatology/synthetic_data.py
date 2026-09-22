@@ -28,12 +28,36 @@ IMG_SIZE = 96
 # asymmetry / border_irregularity / color_variegation: 0 (regular) - 1 (highly irregular)
 # diameter: fraction of image radius the lesion occupies
 CLASS_PARAMS: dict[str, dict] = {
-    "healthy":              {"asymmetry": (0.00, 0.05), "border": (0.00, 0.05), "color_var": (0.00, 0.05), "diameter": (0.03, 0.10), "color": (222, 178, 150)},
-    "eczema":                {"asymmetry": (0.05, 0.20), "border": (0.15, 0.35), "color_var": (0.10, 0.20), "diameter": (0.20, 0.40), "color": (205, 85, 80)},
-    "psoriasis":             {"asymmetry": (0.05, 0.20), "border": (0.10, 0.25), "color_var": (0.08, 0.18), "diameter": (0.25, 0.50), "color": (215, 175, 175)},
-    "benign_nevus":          {"asymmetry": (0.02, 0.12), "border": (0.02, 0.12), "color_var": (0.05, 0.15), "diameter": (0.08, 0.18), "color": (95, 60, 42)},
-    "basal_cell_carcinoma":  {"asymmetry": (0.20, 0.40), "border": (0.25, 0.45), "color_var": (0.20, 0.35), "diameter": (0.18, 0.35), "color": (205, 150, 140)},
-    "melanoma":              {"asymmetry": (0.40, 0.80), "border": (0.40, 0.80), "color_var": (0.40, 0.80), "diameter": (0.30, 0.60), "color": (45, 28, 24)},
+    "healthy": {
+        "asymmetry": (0.00, 0.05), "border": (0.00, 0.05),
+        "color_var": (0.00, 0.05), "diameter": (0.03, 0.10),
+        "color": (222, 178, 150),
+    },
+    "eczema": {
+        "asymmetry": (0.05, 0.20), "border": (0.15, 0.35),
+        "color_var": (0.10, 0.20), "diameter": (0.20, 0.40),
+        "color": (205, 85, 80),
+    },
+    "psoriasis": {
+        "asymmetry": (0.05, 0.20), "border": (0.10, 0.25),
+        "color_var": (0.08, 0.18), "diameter": (0.25, 0.50),
+        "color": (215, 175, 175),
+    },
+    "benign_nevus": {
+        "asymmetry": (0.02, 0.12), "border": (0.02, 0.12),
+        "color_var": (0.05, 0.15), "diameter": (0.08, 0.18),
+        "color": (95, 60, 42),
+    },
+    "basal_cell_carcinoma": {
+        "asymmetry": (0.20, 0.40), "border": (0.25, 0.45),
+        "color_var": (0.20, 0.35), "diameter": (0.18, 0.35),
+        "color": (205, 150, 140),
+    },
+    "melanoma": {
+        "asymmetry": (0.40, 0.80), "border": (0.40, 0.80),
+        "color_var": (0.40, 0.80), "diameter": (0.30, 0.60),
+        "color": (45, 28, 24),
+    },
 }
 
 CLASSES = list(CLASS_PARAMS.keys())
@@ -42,7 +66,7 @@ _SKIN_TONE = np.array([222.0, 178.0, 150.0])   # base background skin color (RGB
 
 
 def _radius_function(theta: np.ndarray, base_radius: float, asymmetry: float,
-                      border: float, rng: np.random.Generator) -> np.ndarray:
+                     border: float, rng: np.random.Generator) -> np.ndarray:
     """Boundary radius as a function of angle theta — asymmetric + irregular."""
     # Asymmetry: two different mean radii on either side of a random axis.
     axis = rng.uniform(0, 2 * np.pi)
@@ -106,7 +130,6 @@ def extract_features(img: np.ndarray) -> np.ndarray:
     9:   border irregularity (mask perimeter / sqrt(area) — higher = more jagged boundary)
     """
     img = img.astype(np.float32)
-    size = img.shape[0]
 
     # Segment the lesion: pixels sufficiently different from the estimated
     # background color (sampled from the image corners).

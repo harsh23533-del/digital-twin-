@@ -20,8 +20,7 @@ from twin_engine.patient_state import PatientState
 from twin_engine.scheduler import DummySimulator
 from modules.metabolic.metabolic_module import MetabolicModule
 from modules.metabolic.model import REFERENCE_RANGES, DOMAIN_MARKERS
-
-DOMAIN_ALERT_THRESHOLD = 0.5  # per-domain score at/above which the banner turns red
+from config import DOMAIN_ALERT_THRESHOLD  # per-domain score at/above which the banner turns red
 
 MARKER_UNITS = {
     "creatinine": "mg/dL", "egfr": "mL/min/1.73m²", "alt": "U/L",

@@ -23,22 +23,21 @@ import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import numpy as np
+import numpy as np  # noqa: E402
 
-from twin_engine.patient_state import PatientState
-from twin_engine.scheduler import DummySimulator, tick
-from modules.cardiac.cardiac_module import CardiacModule
-from modules.cardiac.model import load_model as load_cardiac_model
-from modules.cardiac.rolling_features import build_feature_row
-from modules.metabolic.metabolic_module import MetabolicModule
-from modules.metabolic.model import score_all, domain_scores
-from modules.dermatology.dermatology_module import DermatologyModule
-from modules.dermatology.model import OnnxSkinClassifier
-from modules.dermatology.synthetic_data import generate_image
-
-CARDIAC_ALERT_THRESHOLD = 0.6
-DOMAIN_ALERT_THRESHOLD = 0.5
-DERM_ALERT_THRESHOLD = 0.5
+from twin_engine.patient_state import PatientState  # noqa: E402
+from twin_engine.scheduler import DummySimulator, tick  # noqa: E402
+from modules.cardiac.cardiac_module import CardiacModule  # noqa: E402
+from modules.cardiac.model import load_model as load_cardiac_model  # noqa: E402
+from modules.cardiac.rolling_features import build_feature_row  # noqa: E402
+from modules.metabolic.metabolic_module import MetabolicModule  # noqa: E402
+from modules.metabolic.model import score_all, domain_scores  # noqa: E402
+from modules.dermatology.dermatology_module import DermatologyModule  # noqa: E402
+from modules.dermatology.model import OnnxSkinClassifier  # noqa: E402
+from modules.dermatology.synthetic_data import generate_image  # noqa: E402
+from config import (  # noqa: E402
+    CARDIAC_ALERT_THRESHOLD, DOMAIN_ALERT_THRESHOLD, DERM_ALERT_THRESHOLD,
+)
 
 _results = []
 
@@ -156,7 +155,8 @@ def test_cardiac_alert_fires_on_extreme_input():
 
     CardiacModule().process(state)
     score = state.risk_scores["cardiac"]["score"]
-    assert score >= CARDIAC_ALERT_THRESHOLD, f"expected high-risk profile to breach threshold, got {score:.3f}"
+    assert score >= CARDIAC_ALERT_THRESHOLD, \
+        f"expected high-risk profile to breach threshold, got {score:.3f}"
 
     ehr_low_risk = {
         "age": 30, "sex": 0, "cp": 0, "chol": 160, "fbs": 0,
@@ -166,12 +166,16 @@ def test_cardiac_alert_fires_on_extreme_input():
     state2.add_reading("vitals", {"heart_rate": 65, "spo2": 99})
     CardiacModule().process(state2)
     score2 = state2.risk_scores["cardiac"]["score"]
-    assert score2 < CARDIAC_ALERT_THRESHOLD, f"expected low-risk profile to stay under threshold, got {score2:.3f}"
+    assert score2 < CARDIAC_ALERT_THRESHOLD, \
+        f"expected low-risk profile to stay under threshold, got {score2:.3f}"
 
 
 def test_metabolic_alert_fires_on_extreme_input():
     state = PatientState(patient_id="alert_metabolic")
-    state.add_reading("lab", {"creatinine": 2.8, "egfr": 25.0, "alt": 140.0, "ast": 135.0, "glucose": 210.0, "hba1c": 9.0})
+    state.add_reading("lab", {
+        "creatinine": 2.8, "egfr": 25.0, "alt": 140.0,
+        "ast": 135.0, "glucose": 210.0, "hba1c": 9.0,
+    })
     MetabolicModule().process(state)
     domains = state.risk_scores["metabolic"]["explanation"]["domain_scores"]
     assert any(v >= DOMAIN_ALERT_THRESHOLD for v in domains.values()), \
@@ -208,7 +212,8 @@ def test_multi_patient_personalization():
     score_a = state_a.risk_scores["cardiac"]["score"]
     score_b = state_b.risk_scores["cardiac"]["score"]
     assert score_a != score_b, f"expected different patients to get different scores, both={score_a}"
-    assert score_a > score_b, f"expected higher-risk profile (A) to score above lower-risk (B): A={score_a} B={score_b}"
+    assert score_a > score_b, \
+        f"expected higher-risk profile (A) to score above lower-risk (B): A={score_a} B={score_b}"
 
 
 def main():
@@ -224,13 +229,19 @@ def main():
 
     print()
     print("3. Threshold-breach alerts")
-    check("cardiac alert fires on high-risk / stays quiet on low-risk", test_cardiac_alert_fires_on_extreme_input)
+    check(
+        "cardiac alert fires on high-risk / stays quiet on low-risk",
+        test_cardiac_alert_fires_on_extreme_input,
+    )
     check("metabolic alert fires on extreme labs", test_metabolic_alert_fires_on_extreme_input)
     check("dermatology alert fires on melanoma sample", test_dermatology_alert_fires_on_melanoma)
 
     print()
     print("4. Multi-patient personalization")
-    check("two distinct patients get distinct, correctly-ordered risk scores", test_multi_patient_personalization)
+    check(
+        "two distinct patients get distinct, correctly-ordered risk scores",
+        test_multi_patient_personalization,
+    )
 
     print("=" * 70)
     passed = sum(1 for _, ok, _ in _results if ok)
