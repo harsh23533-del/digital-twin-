@@ -13,6 +13,7 @@ import logging
 from twin_engine.patient_state import PatientState
 from modules.cardiac.cardiac_module import CardiacModule
 from modules.metabolic.metabolic_module import MetabolicModule
+from modules.dermatology.dermatology_module import DermatologyModule
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger("twin_engine")
@@ -69,6 +70,7 @@ def tick(
     tick_count: int,
     cardiac: CardiacModule,
     metabolic: MetabolicModule,
+    dermatology: DermatologyModule,
 ) -> None:
     """Advance one simulated time step for a single patient."""
     reading_type, reading = simulator.next_reading(state.patient_id, tick_count)
@@ -78,8 +80,8 @@ def tick(
         cardiac.process(state)
     elif reading_type == "lab":
         metabolic.process(state)
-    # Later steps route other reading types into their modules here, e.g.:
-    # if reading_type == "image": dermatology_module.process(state)
+    elif reading_type == "image":
+        dermatology.process(state)
 
     logger.info(f"tick {tick_count:03d} | +{reading_type} {reading} | {state.summary()}")
 
@@ -96,10 +98,11 @@ def run(patient_id: str = "patient_001", n_ticks: int = 10, interval_sec: float 
     simulator = DummySimulator()
     cardiac = CardiacModule()
     metabolic = MetabolicModule()
+    dermatology = DermatologyModule()
 
     logger.info(f"Starting twin engine for {patient_id} — {n_ticks} ticks")
     for i in range(n_ticks):
-        tick(state, simulator, i, cardiac, metabolic)
+        tick(state, simulator, i, cardiac, metabolic, dermatology)
         time.sleep(interval_sec)
 
     logger.info("Engine loop finished.")
