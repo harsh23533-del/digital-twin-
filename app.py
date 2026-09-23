@@ -38,8 +38,8 @@ MARKER_UNITS = {
 # Two starter patients so the selector has something real to switch between.
 DEFAULT_PATIENTS = {
     "patient_001": {
-        "age": 52, "sex": 1, "cp": 3, "chol": 230, "fbs": 0,
-        "restecg": 1, "exang": 0, "oldpeak": 1.2, "slope": 2, "ca": 0, "thal": 3,
+        "age": 56, "sex": 1, "cp": 2, "chol": 255, "fbs": 1,
+        "restecg": 0, "exang": 1, "oldpeak": 2.0, "slope": 1, "ca": 1, "thal": 2,
     },
     "patient_002": {
         "age": 59, "sex": 0, "cp": 1, "chol": 265, "fbs": 1,
