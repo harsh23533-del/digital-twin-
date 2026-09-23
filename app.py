@@ -58,6 +58,12 @@ def _init_engine() -> None:
                 "tick_count": 0,
                 "risk_history": {"cardiac": [], "metabolic": [], "dermatology": []},
                 "lab_ticks": [],
+                # Edge-trigger state: whether each module (cardiac/dermatology)
+                # or metabolic domain was already above its alert threshold as
+                # of the last tick, so _check_alerts only logs on the
+                # below->above transition instead of on every tick the score
+                # happens to stay elevated.
+                "alert_state": {"cardiac": False, "dermatology": False, "metabolic": {}},
             }
         # Models/explainers are stateless w.r.t. patient identity, so one
         # instance per module is shared across all patients (cheaper: the
@@ -78,21 +84,33 @@ def _log_alert(patient_id: str, module: str, message: str) -> None:
 
 
 def _check_alerts(patient_id: str, state: PatientState) -> None:
-    """After a tick, compare the latest risk scores to thresholds and log new alerts."""
+    """After a tick, log an alert only on the below->above threshold transition
+    (edge-triggered) — not on every tick a score happens to stay elevated."""
+    alert_state = st.session_state.patients[patient_id]["alert_state"]
+
     cardiac = state.risk_scores.get("cardiac")
-    if cardiac and cardiac["score"] >= CARDIAC_ALERT_THRESHOLD:
-        _log_alert(patient_id, "cardiac", f"Cardiac risk elevated: {cardiac['score']:.2f}")
+    if cardiac:
+        is_high = cardiac["score"] >= CARDIAC_ALERT_THRESHOLD
+        if is_high and not alert_state["cardiac"]:
+            _log_alert(patient_id, "cardiac", f"Cardiac risk elevated: {cardiac['score']:.2f}")
+        alert_state["cardiac"] = is_high
 
     metabolic = state.risk_scores.get("metabolic")
     if metabolic:
         for domain, score in metabolic["explanation"]["domain_scores"].items():
-            if score >= DOMAIN_ALERT_THRESHOLD:
+            is_high = score >= DOMAIN_ALERT_THRESHOLD
+            was_high = alert_state["metabolic"].get(domain, False)
+            if is_high and not was_high:
                 _log_alert(patient_id, "metabolic", f"{domain.title()} domain elevated: {score:.2f}")
+            alert_state["metabolic"][domain] = is_high
 
     derm = state.risk_scores.get("dermatology")
-    if derm and derm["score"] >= DERM_ALERT_THRESHOLD:
-        label = derm["explanation"]["label"]
-        _log_alert(patient_id, "dermatology", f"Concerning skin finding: {label} ({derm['score']:.2f})")
+    if derm:
+        is_high = derm["score"] >= DERM_ALERT_THRESHOLD
+        if is_high and not alert_state["dermatology"]:
+            label = derm["explanation"]["label"]
+            _log_alert(patient_id, "dermatology", f"Concerning skin finding: {label} ({derm['score']:.2f})")
+        alert_state["dermatology"] = is_high
 
 
 def _run_ticks(patient_id: str, n: int) -> None:

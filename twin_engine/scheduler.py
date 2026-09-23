@@ -52,21 +52,41 @@ class DummySimulator:
         self._lab_state = {m: start for m, (start, _, _) in self._LAB_WALK_SPEC.items()}
         self._skin_severity = 0.08  # starts near "healthy"
         self._img_rng = np.random.default_rng()
+        self._trestbps_state = 120.0  # resting systolic BP, bounded random walk
 
     def next_reading(self, patient_id: str, tick_count: int) -> tuple[str, dict]:
         reading_type = self._reading_types[tick_count % len(self._reading_types)]
 
         if reading_type == "vitals":
-            reading = {
-                "heart_rate": random.randint(60, 100),
-                "spo2": random.randint(94, 100),
-            }
+            reading = self._next_vitals_reading()
         elif reading_type == "lab":
             reading = self._next_lab_reading()
         else:  # image
             reading = self._next_image_reading(patient_id, tick_count)
 
         return reading_type, reading
+
+    def _next_vitals_reading(self) -> dict:
+        # trestbps: slow bounded random walk, like the lab markers, so the
+        # rolling-average feature in rolling_features.py actually has data
+        # to average instead of always falling back to the static EHR value.
+        self._trestbps_state = round(
+            max(90.0, min(180.0, self._trestbps_state + random.uniform(-3.0, 3.0))), 1
+        )
+        # heart_rate: mostly resting range, with an occasional exertion spike
+        # so the rolling-window max (thalach) reaches physiologically
+        # realistic peak values instead of being capped at 100 — the
+        # Cleveland dataset's thalach feature ranges up to ~202.
+        if random.random() < 0.15:
+            heart_rate = random.randint(110, 180)
+        else:
+            heart_rate = random.randint(58, 100)
+
+        return {
+            "heart_rate": heart_rate,
+            "spo2": random.randint(94, 100),
+            "trestbps": self._trestbps_state,
+        }
 
     def _next_lab_reading(self) -> dict:
         for marker, (_, (lo, hi), step) in self._LAB_WALK_SPEC.items():

@@ -22,7 +22,17 @@ class CardiacModule:
         prob = float(self.model.predict_proba(scaled)[0][1])
 
         shap_values = self.explainer.shap_values(scaled)
-        vals = shap_values[0] if isinstance(shap_values, list) else shap_values[0]
+        # TreeExplainer's output format depends on the SHAP/XGBoost version:
+        # some return a single (n_samples, n_features) array of SHAP values
+        # for the positive class directly; older versions return a list of
+        # two such arrays, one per class ([class_0, class_1]). `prob` above
+        # is P(class=1), so when a list comes back we must take index 1
+        # (positive class), not 0 — picking 0 would silently explain the
+        # wrong class's prediction.
+        if isinstance(shap_values, list):
+            vals = shap_values[1][0]
+        else:
+            vals = shap_values[0]
         contributions = dict(zip(FEATURE_NAMES, [float(v) for v in vals]))
         top_factors = dict(
             sorted(contributions.items(), key=lambda kv: abs(kv[1]), reverse=True)[:3]
