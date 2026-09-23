@@ -20,24 +20,37 @@ diagram.
 
 A shared **Twin Engine** (`twin_engine/`) advances simulated time and routes
 each new reading to the module that owns it. Each module keeps its own
-`risk_scores[...]` entry up to date; each has its own dashboard tab; `app.py`
-unifies all three behind a patient selector and one chronological alert log.
+`risk_scores[...]` entry up to date; a persistent header (patient EHR summary
++ a low-poly 3D humanoid that highlights the relevant organ) sits above a
+segmented module selector; `app.py` unifies all three behind a patient
+selector and one chronological alert log.
 
 ## Structure
 
 ```
 twin_engine/          core patient-state engine + tick scheduler
-modules/cardiac/       XGBoost (AUC ≈ 0.94) + SHAP explainer, rolling vitals features
+modules/cardiac/       XGBoost (AUC ≈ 0.92 on this build's own held-out split) + SHAP explainer, rolling vitals features
 modules/metabolic/     reference-range lab scorer + trend detection
 modules/dermatology/   ONNX MLP skin-lesion classifier (stretch goal) + synthetic
                         dermoscopy image generator (no DermNet access in this
                         build environment — see docs/methodology.md)
-dashboard/             Streamlit tabs: cardiac_tab.py, metabolic_tab.py, dermatology_tab.py
+dashboard/             patient_header.py (persistent EHR + 3D organ-highlight model),
+                        cardiac_tab.py, metabolic_tab.py, dermatology_tab.py
 app.py                 unified multi-patient app tying all three modules together
 data/cardiac/          Cleveland Heart Disease CSV
 tests/test_engine.py   parity, multi-day, alert-threshold, multi-patient checks
 docs/                  methodology.md, architecture.png
 ```
+
+## Persistent Patient Header
+
+Above the module selector, a header shows the active patient's EHR baseline
+(age, sex, cholesterol, resting BP) alongside a low-poly 3D humanoid
+(Three.js, embedded via `st.iframe`). The humanoid highlights whichever
+organ the selected module concerns — heart for Cardiac, kidney/liver region
+for Metabolic, whole-body tint for Dermatology — driven by
+`st.session_state.active_module` (a segmented radio control stands in for
+`st.tabs()`, since tabs don't report their active selection back to Python).
 
 ## Setup
 

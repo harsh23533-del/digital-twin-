@@ -2,7 +2,10 @@
 Cardiac risk model — reused from harsh23533-del/heart-disease-predictor.
 
 Same architecture and hyperparameters as the deployed Streamlit app's
-Heart_Disease.py (XGBoost on the Cleveland dataset, ~0.94 AUC-ROC).
+Heart_Disease.py (XGBoost on the Cleveland dataset). That original app
+reported ~0.94 AUC-ROC; this rebuild's own held-out split measures
+~0.92 (printed below on training) — same model family, different
+train/test split, so the two numbers aren't directly comparable.
 Trains once from the local CSV mirror (data/cardiac/cleveland_heart.csv)
 and caches model.pkl / scaler.pkl / features.pkl under artifacts/, so
 later runs load instantly instead of retraining.

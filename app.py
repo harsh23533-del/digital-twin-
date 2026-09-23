@@ -24,6 +24,7 @@ from modules.cardiac.cardiac_module import CardiacModule
 from modules.metabolic.metabolic_module import MetabolicModule
 from modules.metabolic.model import REFERENCE_RANGES, DOMAIN_MARKERS
 from modules.dermatology.dermatology_module import DermatologyModule
+from dashboard.patient_header import render_patient_header
 
 from config import CARDIAC_ALERT_THRESHOLD, DOMAIN_ALERT_THRESHOLD, DERM_ALERT_THRESHOLD
 
@@ -173,10 +174,24 @@ p = st.session_state.patients[patient_id]
 state = p["state"]
 st.caption(f"Patient: **{patient_id}** | Ticks elapsed: {p['tick_count']}")
 
-tab_cardiac, tab_metabolic, tab_derm = st.tabs(["🫀 Cardiac", "🧪 Metabolic", "🩹 Dermatology"])
+# Which module tab is "active" has to live in session_state and drive both
+# the page content below AND the 3D model's organ highlight — st.tabs()
+# alone doesn't report the active tab back to Python, so a segmented
+# radio control stands in for tabs here (styled below) and both the
+# header and the content branch off st.session_state.active_module.
+_MODULE_LABELS = {"cardiac": "🫀 Cardiac", "metabolic": "🧪 Metabolic", "dermatology": "🩹 Dermatology"}
+if "active_module" not in st.session_state:
+    st.session_state.active_module = "cardiac"
 
-# --- Cardiac tab ---
-with tab_cardiac:
+render_patient_header(patient_id, state.ehr_profile, st.session_state.active_module)
+
+active_module = st.radio(
+    "Module", options=list(_MODULE_LABELS.keys()), format_func=lambda k: _MODULE_LABELS[k],
+    horizontal=True, key="active_module", label_visibility="collapsed",
+)
+
+# --- Cardiac ---
+if active_module == "cardiac":
     latest_risk = state.risk_scores.get("cardiac")
     if latest_risk:
         score = latest_risk["score"]
@@ -204,8 +219,8 @@ with tab_cardiac:
     else:
         st.info("No cardiac reading yet — click Advance.")
 
-# --- Metabolic tab ---
-with tab_metabolic:
+# --- Metabolic ---
+elif active_module == "metabolic":
     latest_risk = state.risk_scores.get("metabolic")
     if latest_risk:
         domain_scores = latest_risk["explanation"]["domain_scores"]
@@ -252,8 +267,8 @@ with tab_metabolic:
     else:
         st.info("No lab reading yet — click Advance.")
 
-# --- Dermatology tab ---
-with tab_derm:
+# --- Dermatology ---
+else:
     latest_risk = state.risk_scores.get("dermatology")
     if latest_risk:
         score = latest_risk["score"]

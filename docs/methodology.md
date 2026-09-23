@@ -30,7 +30,10 @@ behind a multi-patient selector and a shared, chronological alert log.
 **Cardiac.** XGBoost classifier (`n_estimators=200, max_depth=5,
 learning_rate=0.05`) trained on the 13 standard Cleveland features
 (age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope,
-ca, thal), held-out AUC-ROC ≈ 0.94. A `shap.TreeExplainer` runs on every tick
+ca, thal), held-out AUC-ROC ≈ 0.92 on this build's own train/test split
+(the original reused app reported ~0.94 on its own split — same model
+family and hyperparameters, different split, so the two aren't directly
+comparable). A `shap.TreeExplainer` runs on every tick
 so each score ships with its own per-feature contribution breakdown, shown as
 a bar chart in `cardiac_tab.py`. Rolling wearable features (last-N-minute
 heart-rate average, SpO2 trend) are blended in via
