@@ -53,6 +53,7 @@ class DummySimulator:
         self._skin_severity = 0.08  # starts near "healthy"
         self._img_rng = np.random.default_rng()
         self._trestbps_state = 120.0  # resting systolic BP, bounded random walk
+        self._stress_ticks_remaining = 0  # >0 while a cardiac stress episode is active
 
     def next_reading(self, patient_id: str, tick_count: int) -> tuple[str, dict]:
         reading_type = self._reading_types[tick_count % len(self._reading_types)]
@@ -67,24 +68,42 @@ class DummySimulator:
         return reading_type, reading
 
     def _next_vitals_reading(self) -> dict:
-        # trestbps: slow bounded random walk, like the lab markers, so the
-        # rolling-average feature in rolling_features.py actually has data
-        # to average instead of always falling back to the static EHR value.
-        self._trestbps_state = round(
-            max(90.0, min(180.0, self._trestbps_state + random.uniform(-3.0, 3.0))), 1
-        )
-        # heart_rate: mostly resting range, with an occasional exertion spike
-        # so the rolling-window max (thalach) reaches physiologically
-        # realistic peak values instead of being capped at 100 — the
-        # Cleveland dataset's thalach feature ranges up to ~202.
-        if random.random() < 0.15:
+        # Occasionally trigger a short "cardiac stress episode": resting BP
+        # climbs and, unlike a healthy exertion spike, heart rate fails to
+        # rise with it (chronotropic incompetence — a real, well-documented
+        # risk marker also reflected in the Cleveland training data via
+        # low thalach + high trestbps). ~2% chance per vitals tick to start
+        # one, lasting 8-15 consecutive vitals ticks, so a demo session
+        # sees the cardiac alert fire once or twice rather than never or
+        # constantly.
+        if self._stress_ticks_remaining <= 0 and random.random() < 0.02:
+            self._stress_ticks_remaining = random.randint(8, 15)
+
+        in_episode = self._stress_ticks_remaining > 0
+        if in_episode:
+            self._stress_ticks_remaining -= 1
+
+        # trestbps: slow bounded random walk; biased upward toward a high
+        # plateau during a stress episode, otherwise a normal small drift.
+        if in_episode:
+            step = random.uniform(0.5, 5.0) if self._trestbps_state < 175.0 else random.uniform(-3.0, 3.0)
+        else:
+            step = random.uniform(-3.0, 3.0) if self._trestbps_state <= 120.0 else random.uniform(-4.0, 1.0)
+        self._trestbps_state = round(max(90.0, min(185.0, self._trestbps_state + step)), 1)
+
+        if in_episode:
+            # Suppressed heart rate under stress (can't raise HR appropriately).
+            heart_rate = random.randint(55, 68)
+        elif random.random() < 0.15:
+            # Occasional healthy exertion spike so thalach still reaches
+            # realistic peak values (Cleveland's thalach ranges up to ~202).
             heart_rate = random.randint(110, 180)
         else:
             heart_rate = random.randint(58, 100)
 
         return {
             "heart_rate": heart_rate,
-            "spo2": random.randint(94, 100),
+            "spo2": random.randint(90, 100) if in_episode else random.randint(94, 100),
             "trestbps": self._trestbps_state,
         }
 

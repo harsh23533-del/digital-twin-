@@ -42,8 +42,8 @@ DEFAULT_PATIENTS = {
         "restecg": 1, "exang": 0, "oldpeak": 1.2, "slope": 2, "ca": 0, "thal": 3,
     },
     "patient_002": {
-        "age": 61, "sex": 0, "cp": 1, "chol": 260, "fbs": 1,
-        "restecg": 0, "exang": 1, "oldpeak": 2.1, "slope": 1, "ca": 1, "thal": 2,
+        "age": 59, "sex": 0, "cp": 1, "chol": 265, "fbs": 1,
+        "restecg": 0, "exang": 1, "oldpeak": 2.0, "slope": 1, "ca": 1, "thal": 2,
     },
 }
 
@@ -192,6 +192,18 @@ active_module = st.radio(
 
 # --- Cardiac ---
 if active_module == "cardiac":
+    latest_vitals = state.vitals_history[-1] if state.vitals_history else None
+    v1, v2, v3 = st.columns(3)
+    with v1:
+        st.metric("Heart Rate (bpm)", latest_vitals["heart_rate"] if latest_vitals else "—")
+    with v2:
+        st.metric("SpO2 (%)", latest_vitals["spo2"] if latest_vitals else "—")
+    with v3:
+        st.metric(
+            "Resting BP (trestbps, mmHg)",
+            latest_vitals["trestbps"] if latest_vitals else "—",
+        )
+
     latest_risk = state.risk_scores.get("cardiac")
     if latest_risk:
         score = latest_risk["score"]
@@ -199,6 +211,25 @@ if active_module == "cardiac":
             st.error(f"⚠️ Cardiac risk elevated: {score:.2f} (threshold {CARDIAC_ALERT_THRESHOLD})")
         else:
             st.success(f"Cardiac risk nominal: {score:.2f}")
+
+        vitals_recent = list(state.vitals_history)[-60:]
+        if vitals_recent:
+            st.subheader("Recent vitals stream")
+            vfig = make_subplots(specs=[[{"secondary_y": True}]])
+            vfig.add_trace(
+                go.Scatter(y=[v["heart_rate"] for v in vitals_recent], name="Heart rate (bpm)",
+                           mode="lines+markers", line=dict(color="crimson")),
+                secondary_y=False,
+            )
+            vfig.add_trace(
+                go.Scatter(y=[v["trestbps"] for v in vitals_recent], name="Resting BP (mmHg)",
+                           mode="lines+markers", line=dict(color="darkorange")),
+                secondary_y=True,
+            )
+            vfig.update_yaxes(title_text="Heart rate (bpm)", secondary_y=False)
+            vfig.update_yaxes(title_text="Resting BP (mmHg)", secondary_y=True)
+            vfig.update_layout(xaxis_title="Recent vitals ticks", height=260)
+            st.plotly_chart(vfig, width="stretch")
 
         history = p["risk_history"]["cardiac"]
         if history:
