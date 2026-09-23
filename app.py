@@ -154,6 +154,15 @@ _init_engine()
 st.title("🩺 MediTwin — Unified Multi-Disease Digital Twin")
 st.caption("Digital Twin Challenge 2026 (Happiest Health)")
 
+# Which module tab is "active" has to live in session_state and drive the
+# page content, the 3D model's organ highlight, AND the sidebar alert log
+# filter below — initialized here, before the sidebar, so it's always safe
+# to read even on the very first script run (before the radio widget below
+# has created the key itself).
+_MODULE_LABELS = {"cardiac": "🫀 Cardiac", "metabolic": "🧪 Metabolic", "dermatology": "🩹 Dermatology"}
+if "active_module" not in st.session_state:
+    st.session_state.active_module = "cardiac"
+
 with st.sidebar:
     st.header("Patient")
     patient_id = st.selectbox("Active patient", list(st.session_state.patients.keys()))
@@ -163,26 +172,24 @@ with st.sidebar:
     auto = st.checkbox("Auto-run (1 tick / sec)")
 
     st.divider()
-    st.subheader("🔔 Alert Log — all patients")
-    if st.session_state.alert_log:
-        for a in reversed(st.session_state.alert_log[-15:]):
-            st.caption(f"`{a['time']}` **{a['patient']}** [{a['module']}] {a['message']}")
+    active_label = _MODULE_LABELS[st.session_state.active_module]
+    st.subheader(f"🔔 {active_label} Alerts — all patients")
+    module_alerts = [
+        a for a in st.session_state.alert_log if a["module"] == st.session_state.active_module
+    ]
+    if module_alerts:
+        for a in reversed(module_alerts[-15:]):
+            st.caption(f"`{a['time']}` **{a['patient']}** {a['message']}")
     else:
-        st.caption("No alerts yet.")
+        st.caption(f"No {st.session_state.active_module} alerts yet.")
 
 p = st.session_state.patients[patient_id]
 state = p["state"]
 st.caption(f"Patient: **{patient_id}** | Ticks elapsed: {p['tick_count']}")
 
-# Which module tab is "active" has to live in session_state and drive both
-# the page content below AND the 3D model's organ highlight — st.tabs()
-# alone doesn't report the active tab back to Python, so a segmented
-# radio control stands in for tabs here (styled below) and both the
-# header and the content branch off st.session_state.active_module.
-_MODULE_LABELS = {"cardiac": "🫀 Cardiac", "metabolic": "🧪 Metabolic", "dermatology": "🩹 Dermatology"}
-if "active_module" not in st.session_state:
-    st.session_state.active_module = "cardiac"
-
+# st.tabs() doesn't report the active tab back to Python, so a segmented
+# radio control (key="active_module", initialized above the sidebar) stands
+# in for tabs here — both the header and the content below branch off it.
 render_patient_header(patient_id, state.ehr_profile, st.session_state.active_module)
 
 active_module = st.radio(
