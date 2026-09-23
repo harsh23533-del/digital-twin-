@@ -25,6 +25,7 @@ from modules.metabolic.metabolic_module import MetabolicModule
 from modules.metabolic.model import REFERENCE_RANGES, DOMAIN_MARKERS
 from modules.dermatology.dermatology_module import DermatologyModule
 from dashboard.patient_header import render_patient_header
+from dashboard.cardiac_alarm import render_cardiac_alarm
 
 from config import CARDIAC_ALERT_THRESHOLD, DOMAIN_ALERT_THRESHOLD, DERM_ALERT_THRESHOLD
 
@@ -215,7 +216,7 @@ if active_module == "cardiac":
     if latest_risk:
         score = latest_risk["score"]
         if score >= CARDIAC_ALERT_THRESHOLD:
-            st.error(f"⚠️ Cardiac risk elevated: {score:.2f} (threshold {CARDIAC_ALERT_THRESHOLD})")
+            render_cardiac_alarm(score, CARDIAC_ALERT_THRESHOLD)
         else:
             st.success(f"Cardiac risk nominal: {score:.2f}")
 
