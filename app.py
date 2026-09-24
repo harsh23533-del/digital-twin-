@@ -12,6 +12,7 @@ Run:
 
 import time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
@@ -30,6 +31,13 @@ from dashboard.cardiac_alarm import render_cardiac_alarm
 from config import CARDIAC_ALERT_THRESHOLD, DOMAIN_ALERT_THRESHOLD, DERM_ALERT_THRESHOLD
 
 st.set_page_config(page_title="MediTwin", layout="wide", page_icon="🩺")
+st.markdown(
+    """<style>
+        .block-container {padding-top: 1.2rem; padding-bottom: 1rem;}
+        [data-testid="stMetricValue"] {font-size: 1.5rem;}
+    </style>""",
+    unsafe_allow_html=True,
+)
 
 MARKER_UNITS = {
     "creatinine": "mg/dL", "egfr": "mL/min/1.73m²", "alt": "U/L",
@@ -76,9 +84,12 @@ def _init_engine() -> None:
         st.session_state.alert_log = []  # chronological, across all patients+modules
 
 
+_IST = ZoneInfo("Asia/Kolkata")
+
+
 def _log_alert(patient_id: str, module: str, message: str) -> None:
     st.session_state.alert_log.append({
-        "time": datetime.now().strftime("%H:%M:%S"),
+        "time": datetime.now(_IST).strftime("%H:%M:%S"),
         "patient": patient_id,
         "module": module,
         "message": message,
@@ -152,8 +163,12 @@ def _run_ticks(patient_id: str, n: int) -> None:
 
 _init_engine()
 
-st.title("🩺 MediTwin — Unified Multi-Disease Digital Twin")
-st.caption("Digital Twin Challenge 2026 (Happiest Health)")
+st.markdown(
+    "##### 🩺 MediTwin — Unified Multi-Disease Digital Twin "
+    "&nbsp;·&nbsp; <span style='font-weight:400;color:gray;font-size:0.85rem;'>"
+    "Digital Twin Challenge 2026 (Happiest Health)</span>",
+    unsafe_allow_html=True,
+)
 
 # Which module tab is "active" has to live in session_state and drive the
 # page content, the 3D model's organ highlight, AND the sidebar alert log
@@ -220,41 +235,51 @@ if active_module == "cardiac":
         else:
             st.success(f"Cardiac risk nominal: {score:.2f}")
 
+        chart_col1, chart_col2 = st.columns(2)
+
         vitals_recent = list(state.vitals_history)[-60:]
-        if vitals_recent:
-            st.subheader("Recent vitals stream")
-            vfig = make_subplots(specs=[[{"secondary_y": True}]])
-            vfig.add_trace(
-                go.Scatter(y=[v["heart_rate"] for v in vitals_recent], name="Heart rate (bpm)",
-                           mode="lines+markers", line=dict(color="crimson")),
-                secondary_y=False,
-            )
-            vfig.add_trace(
-                go.Scatter(y=[v["trestbps"] for v in vitals_recent], name="Resting BP (mmHg)",
-                           mode="lines+markers", line=dict(color="darkorange")),
-                secondary_y=True,
-            )
-            vfig.update_yaxes(title_text="Heart rate (bpm)", secondary_y=False)
-            vfig.update_yaxes(title_text="Resting BP (mmHg)", secondary_y=True)
-            vfig.update_layout(xaxis_title="Recent vitals ticks", height=260)
-            st.plotly_chart(vfig, width="stretch")
+        with chart_col1:
+            if vitals_recent:
+                vfig = make_subplots(specs=[[{"secondary_y": True}]])
+                vfig.add_trace(
+                    go.Scatter(y=[v["heart_rate"] for v in vitals_recent], name="Heart rate (bpm)",
+                               mode="lines+markers", line=dict(color="crimson")),
+                    secondary_y=False,
+                )
+                vfig.add_trace(
+                    go.Scatter(y=[v["trestbps"] for v in vitals_recent], name="Resting BP (mmHg)",
+                               mode="lines+markers", line=dict(color="darkorange")),
+                    secondary_y=True,
+                )
+                vfig.update_yaxes(title_text="HR (bpm)", secondary_y=False)
+                vfig.update_yaxes(title_text="BP (mmHg)", secondary_y=True)
+                vfig.update_layout(
+                    title="Recent vitals stream", xaxis_title="Recent ticks", height=280,
+                    margin=dict(t=40, b=30, l=10, r=10), legend=dict(orientation="h", y=-0.25),
+                )
+                st.plotly_chart(vfig, width="stretch")
 
         history = p["risk_history"]["cardiac"]
-        if history:
-            xs, ys = zip(*history)
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=list(xs), y=list(ys), mode="lines+markers", name="Risk score"))
-            fig.add_hline(y=CARDIAC_ALERT_THRESHOLD, line_dash="dash", line_color="red")
-            fig.update_layout(xaxis_title="Tick", yaxis_title="Risk (0-1)", yaxis_range=[0, 1], height=320)
-            st.plotly_chart(fig, width="stretch")
+        with chart_col2:
+            if history:
+                xs, ys = zip(*history)
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=list(xs), y=list(ys), mode="lines+markers", name="Risk score"))
+                fig.add_hline(y=CARDIAC_ALERT_THRESHOLD, line_dash="dash", line_color="red")
+                fig.update_layout(
+                    title="Cardiac risk trend", xaxis_title="Tick", yaxis_title="Risk (0-1)",
+                    yaxis_range=[0, 1], height=280, margin=dict(t=40, b=30, l=10, r=10),
+                )
+                st.plotly_chart(fig, width="stretch")
 
         top_factors = latest_risk["explanation"].get("top_factors")
         if top_factors:
-            names, vals = list(top_factors.keys()), list(top_factors.values())
-            colors = ["crimson" if v > 0 else "seagreen" for v in vals]
-            fig2 = go.Figure(go.Bar(x=vals, y=names, orientation="h", marker_color=colors))
-            fig2.update_layout(xaxis_title="SHAP contribution", height=260, title="Top contributing factors")
-            st.plotly_chart(fig2, width="stretch")
+            with st.expander("Top contributing factors (SHAP)"):
+                names, vals = list(top_factors.keys()), list(top_factors.values())
+                colors = ["crimson" if v > 0 else "seagreen" for v in vals]
+                fig2 = go.Figure(go.Bar(x=vals, y=names, orientation="h", marker_color=colors))
+                fig2.update_layout(xaxis_title="SHAP contribution", height=240, margin=dict(t=10, b=10))
+                st.plotly_chart(fig2, width="stretch")
     else:
         st.info("No cardiac reading yet — click Advance.")
 
@@ -286,11 +311,12 @@ elif active_module == "metabolic":
                 "Marker": m, "Value": latest_reading[m], "Unit": MARKER_UNITS[m],
                 "Domain": domain_of.get(m, "—"), "Status": status, "Trend": trends.get(m, "stable"),
             })
-        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+        with st.expander("Latest lab values", expanded=True):
+            st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True, height=180)
 
         if p["lab_ticks"]:
             markers = list(REFERENCE_RANGES.keys())
-            fig = make_subplots(rows=2, cols=3, subplot_titles=markers, vertical_spacing=0.14)
+            fig = make_subplots(rows=2, cols=3, subplot_titles=markers, vertical_spacing=0.16)
             for idx, marker in enumerate(markers):
                 row, col = idx // 3 + 1, idx % 3 + 1
                 ys = [r.get(marker) for r in state.lab_history]
@@ -301,7 +327,7 @@ elif active_module == "metabolic":
                 ref = REFERENCE_RANGES[marker]
                 fig.add_hline(y=ref["normal"], line_dash="dot", line_color="gray", row=row, col=col)
                 fig.add_hline(y=ref["high"], line_dash="dash", line_color="red", row=row, col=col)
-            fig.update_layout(height=480)
+            fig.update_layout(height=340, margin=dict(t=30, b=10))
             st.plotly_chart(fig, width="stretch")
     else:
         st.info("No lab reading yet — click Advance.")
@@ -330,7 +356,7 @@ else:
             fig.add_hline(y=DERM_ALERT_THRESHOLD, line_dash="dash", line_color="red")
             fig.update_layout(
                 xaxis_title="Tick", yaxis_title="Score (0-1)", yaxis_range=[0, 1],
-                height=320, title="Progression timeline",
+                height=280, title="Progression timeline", margin=dict(t=40, b=30),
             )
             st.plotly_chart(fig, width="stretch")
     else:

@@ -130,22 +130,22 @@ def _humanoid_html(active_module: str, height: int = 300) -> str:
 
 def render_patient_header(patient_id: str, ehr_profile: dict, active_module: str) -> None:
     """Render the persistent header: EHR summary + 3D humanoid, organ-highlighted
-    for the currently active module tab."""
+    for the currently active module tab. Kept compact (fixed small height) so it
+    doesn't push the live charts below the fold."""
     with st.container(border=True):
         info_col, model_col = st.columns([1, 1])
 
         with info_col:
-            st.subheader(f"🧑‍⚕️ {patient_id}")
+            st.markdown(f"**🧑‍⚕️ {patient_id}**")
             sex_label = _SEX_LABEL.get(ehr_profile.get("sex"), "—")
-            c1, c2 = st.columns(2)
+            c1, c2, c3, c4 = st.columns(4)
             c1.metric("Age", ehr_profile.get("age", "—"))
             c2.metric("Sex", sex_label)
-            c3, c4 = st.columns(2)
-            c3.metric("Cholesterol", f"{ehr_profile.get('chol', '—')} mg/dL")
-            c4.metric("Baseline BP", f"{ehr_profile.get('resting_trestbps', 120)} mmHg")
+            c3.metric("Chol.", f"{ehr_profile.get('chol', '—')}")
+            c4.metric("BP", f"{ehr_profile.get('resting_trestbps', 120)}")
             module_names = {"cardiac": "Cardiac", "metabolic": "Metabolic", "dermatology": "Dermatology"}
             viewing = module_names.get(active_module, active_module)
-            st.caption(f"Viewing: **{viewing}** — organ highlighted on the model")
+            st.caption(f"Viewing: **{viewing}** — organ highlighted on the model →")
 
         with model_col:
-            st.iframe(src=_humanoid_html(active_module), height=300)
+            st.iframe(src=_humanoid_html(active_module, height=150), height=150)
