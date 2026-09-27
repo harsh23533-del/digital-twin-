@@ -1,37 +1,21 @@
 """
 Persistent patient header (Feature: 3D patient model).
 
-Renders a header, shown above the module tabs on every screen, with:
+Renders a header, shown above the cardiac view, with:
 - Patient identity + EHR baseline summary (age, sex, cholesterol, BP)
 - A low-poly 3D humanoid (Three.js, embedded via st.components.v1.html)
-  that highlights the organ relevant to whichever module tab is active
-  (cardiac -> heart, metabolic -> kidney/liver region, dermatology ->
-  whole-body skin tint).
-
-The active module has to come from Python (Streamlit's built-in
-st.tabs() doesn't expose which tab is selected back to the server), so
-app.py drives this with a session-state-backed segmented control
-instead of st.tabs — see `_module_selector()` in app.py.
+  with the heart highlighted (this build is cardiac-only).
 """
 
 import streamlit as st
 
-_ORGAN_COLORS = {
-    "cardiac": "0xe63946",       # heart — red
-    "metabolic": "0xf4a261",     # kidney/liver region — amber
-    "dermatology": "0x2a9d8f",   # whole-body skin tint — teal
-}
+_HEART_COLOR = "0xe63946"  # heart — red
 
 _SEX_LABEL = {1: "Male", 0: "Female"}
 
 
-def _humanoid_html(active_module: str, height: int = 300) -> str:
+def _humanoid_html(height: int = 300) -> str:
     """Build the self-contained Three.js scene as an HTML string."""
-    highlight_color = _ORGAN_COLORS.get(active_module, "0xe63946")
-    highlight_heart = "true" if active_module == "cardiac" else "false"
-    highlight_abdomen = "true" if active_module == "metabolic" else "false"
-    highlight_skin = "true" if active_module == "dermatology" else "false"
-
     return f"""
     <div id="twin3d" style="width:100%; height:{height}px;"></div>
     <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
@@ -56,8 +40,7 @@ def _humanoid_html(active_module: str, height: int = 300) -> str:
         dirLight.position.set(2, 3, 4);
         scene.add(dirLight);
 
-        const skinColor = {highlight_skin} ? {highlight_color} : 0xd8b592;
-        const bodyMat = new THREE.MeshStandardMaterial({{ color: skinColor, roughness: 0.6 }});
+        const bodyMat = new THREE.MeshStandardMaterial({{ color: 0xd8b592, roughness: 0.6 }});
 
         const body = new THREE.Group();
 
@@ -88,30 +71,13 @@ def _humanoid_html(active_module: str, height: int = 300) -> str:
         legR.position.set(0.24, -0.85, 0);
         body.add(legR);
 
-        // Organ markers — always present, lit up when their module is active.
-        const heartColor = {highlight_heart} ? {highlight_color} : 0x8a8a8a;
-        const heartEmissive = {highlight_heart} ? {highlight_color} : 0x000000;
+        // Heart marker — always highlighted (cardiac-only build).
         const heartMat = new THREE.MeshStandardMaterial({{
-            color: heartColor, emissive: heartEmissive, emissiveIntensity: 0.5
+            color: {_HEART_COLOR}, emissive: {_HEART_COLOR}, emissiveIntensity: 0.5
         }});
         const heart = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), heartMat);
         heart.position.set(-0.12, 0.78, 0.28);
         body.add(heart);
-
-        const abdomenColor = {highlight_abdomen} ? {highlight_color} : 0x8a8a8a;
-        const abdomenEmissive = {highlight_abdomen} ? {highlight_color} : 0x000000;
-        const abdomenMat = new THREE.MeshStandardMaterial({{
-            color: abdomenColor, emissive: abdomenEmissive, emissiveIntensity: 0.5
-        }});
-        const kidneyL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), abdomenMat);
-        kidneyL.position.set(-0.2, 0.25, 0.22);
-        body.add(kidneyL);
-        const kidneyR = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), abdomenMat);
-        kidneyR.position.set(0.2, 0.25, 0.22);
-        body.add(kidneyR);
-        const liver = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.2, 0.18), abdomenMat);
-        liver.position.set(0.15, 0.35, 0.25);
-        body.add(liver);
 
         scene.add(body);
 
@@ -128,10 +94,10 @@ def _humanoid_html(active_module: str, height: int = 300) -> str:
     """
 
 
-def render_patient_header(patient_id: str, ehr_profile: dict, active_module: str) -> None:
-    """Render the persistent header: EHR summary + 3D humanoid, organ-highlighted
-    for the currently active module tab. Kept compact (fixed small height) so it
-    doesn't push the live charts below the fold."""
+def render_patient_header(patient_id: str, ehr_profile: dict) -> None:
+    """Render the persistent header: EHR summary + 3D humanoid with the
+    heart highlighted. Kept compact (fixed small height) so it doesn't
+    push the live charts below the fold."""
     with st.container(border=True):
         info_col, model_col = st.columns([1, 1])
 
@@ -143,9 +109,7 @@ def render_patient_header(patient_id: str, ehr_profile: dict, active_module: str
             c2.metric("Sex", sex_label)
             c3.metric("Chol.", f"{ehr_profile.get('chol', '—')}")
             c4.metric("BP", f"{ehr_profile.get('resting_trestbps', 120)}")
-            module_names = {"cardiac": "Cardiac", "metabolic": "Metabolic", "dermatology": "Dermatology"}
-            viewing = module_names.get(active_module, active_module)
-            st.caption(f"Viewing: **{viewing}** — organ highlighted on the model →")
+            st.caption("Viewing: **Cardiac** — heart highlighted on the model →")
 
         with model_col:
-            st.iframe(src=_humanoid_html(active_module, height=150), height=150)
+            st.iframe(src=_humanoid_html(height=150), height=150)
