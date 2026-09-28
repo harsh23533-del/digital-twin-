@@ -17,6 +17,8 @@ import streamlit as st
 def _alarm_html(score: float, threshold: float, height: int = 90) -> str:
     return f"""
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&display=swap');
+      body {{ margin: 0; }}
       @keyframes alarm-flash {{
         0%, 100% {{ background-color: #b3001b; }}
         50% {{ background-color: #ff4d4d; }}
@@ -24,17 +26,17 @@ def _alarm_html(score: float, threshold: float, height: int = 90) -> str:
       #alarm-banner {{
         animation: alarm-flash 0.6s infinite;
         color: white;
-        font-family: -apple-system, "Segoe UI", sans-serif;
+        font-family: 'Space Grotesk', -apple-system, 'Segoe UI', sans-serif;
         font-weight: 700;
         font-size: 1.15rem;
         text-align: center;
-        border-radius: 8px;
-        padding: 14px 10px;
+        border-radius: 12px;
+        padding: 16px 12px;
         box-shadow: 0 0 18px rgba(255, 0, 0, 0.6);
       }}
     </style>
     <div id="alarm-banner">
-      🚨 CARDIAC RISK ELEVATED — {score:.2f} (threshold {threshold}) — SEEK MEDICAL ATTENTION
+      Cardiac risk elevated: {score:.2f} (threshold {threshold}). Seek medical attention.
     </div>
     <script>
     (function() {{

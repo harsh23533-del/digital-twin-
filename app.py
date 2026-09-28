@@ -25,14 +25,123 @@ from dashboard.cardiac_alarm import render_cardiac_alarm
 
 from config import CARDIAC_ALERT_THRESHOLD
 
-st.set_page_config(page_title="MediTwin", layout="wide", page_icon="🩺")
-st.markdown(
-    """<style>
-        .block-container {padding-top: 1.2rem; padding-bottom: 1rem;}
-        [data-testid="stMetricValue"] {font-size: 1.5rem;}
-    </style>""",
-    unsafe_allow_html=True,
+st.set_page_config(page_title="MediTwin", layout="wide", page_icon="🫀")
+
+_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+:root {
+  --bg: #F3F4F1;
+  --panel: #10262B;
+  --panel-2: #0A1E21;
+  --ink: #14201E;
+  --ink-soft: rgba(20,32,30,0.62);
+  --on-dark: #E7EFEC;
+  --heart: #FF4462;
+  --o2: #37D6C4;
+  --bp: #FFB648;
+  --safe: #33C17A;
+}
+
+.stApp { background: var(--bg); font-family: 'Space Grotesk', sans-serif; color: var(--ink); }
+.block-container { padding-top: 1.1rem; padding-bottom: 1rem; max-width: 1200px; }
+header[data-testid="stHeader"] { background: transparent; }
+
+[data-testid="stSidebar"] { background: #E9ECE8; border-right: 1px solid rgba(16,38,43,0.08); }
+[data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; }
+
+/* Hero bar with a single looping ECG trace */
+.hero {
+  position: relative; overflow: hidden; border-radius: 16px; padding: 20px 26px;
+  background: linear-gradient(120deg, #123037 0%, #0a1e21 70%);
+  color: var(--on-dark); margin-bottom: 14px;
+}
+.hero h1 { margin: 0; font-size: 1.7rem; font-weight: 700; letter-spacing: -0.01em; color: var(--on-dark); padding: 0; }
+.hero p { margin: 4px 0 0; font-size: 0.85rem; color: rgba(231,239,236,0.6); }
+.hero svg { position: absolute; right: 0; top: 0; height: 100%; width: 55%; opacity: 0.9; }
+.ecg-line {
+  fill: none; stroke: var(--heart); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 900; stroke-dashoffset: 900; animation: ecg-draw 3.2s linear infinite;
+  filter: drop-shadow(0 0 5px rgba(255,68,98,0.7));
+}
+@keyframes ecg-draw { 0% { stroke-dashoffset: 900; } 70% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -900; } }
+
+/* Vital monitor tiles */
+.vital {
+  background: linear-gradient(145deg, var(--panel) 0%, var(--panel-2) 100%);
+  border-radius: 14px; padding: 16px 20px; color: var(--on-dark);
+  border-left: 5px solid var(--accent); position: relative; overflow: hidden;
+}
+.vital .label { font-size: 0.78rem; color: rgba(231,239,236,0.6); margin-bottom: 4px; }
+.vital .value {
+  font-family: 'IBM Plex Mono', monospace; font-size: 2.3rem; font-weight: 600;
+  color: var(--accent); line-height: 1.1; text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.vital .unit { font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; color: rgba(231,239,236,0.55); margin-left: 6px; }
+.vital.hr .value.beat { animation: beat var(--beat-dur, 0.8s) ease-in-out infinite; display: inline-block; transform-origin: left center; }
+@keyframes beat { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.09); } 30% { transform: scale(1); } }
+
+/* Status banner */
+.status {
+  border-radius: 12px; padding: 13px 18px; font-weight: 600; margin: 14px 0 6px;
+  display: flex; align-items: center; gap: 10px;
+}
+.status.ok { background: rgba(51,193,122,0.13); color: #17703f; border: 1px solid rgba(51,193,122,0.35); }
+.status.idle { background: rgba(20,32,30,0.06); color: var(--ink-soft); }
+.status .pip { width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+
+/* Sidebar alert entries */
+.alert-item { font-size: 0.82rem; padding: 7px 0; border-bottom: 1px solid rgba(16,38,43,0.08); }
+.alert-item .t { font-family: 'IBM Plex Mono', monospace; color: var(--ink-soft); margin-right: 6px; }
+.alert-item .p { font-weight: 700; }
+.alert-item .m { color: #c4243f; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ecg-line, .vital.hr .value.beat { animation: none; stroke-dashoffset: 0; }
+}
+</style>
+"""
+st.markdown(_CSS, unsafe_allow_html=True)
+
+_ECG_PATH = (
+    "M0,60 L120,60 L140,60 L155,58 L165,60 L200,60 L215,62 L225,20 L240,105 L255,60 "
+    "L300,60 L330,52 L350,60 L520,60 L540,60 L555,58 L565,60 L600,60 L615,62 L625,20 "
+    "L640,105 L655,60 L700,60 L730,52 L750,60 L900,60"
 )
+
+
+def _hero_html() -> str:
+    return (
+        '<div class="hero"><h1>MediTwin</h1>'
+        '<p>Cardiac digital twin &nbsp;|&nbsp; Digital Twin Challenge 2026 (Happiest Health)</p>'
+        '<svg viewBox="0 0 900 120" preserveAspectRatio="none">'
+        f'<path class="ecg-line" d="{_ECG_PATH}"/></svg></div>'
+    )
+
+
+def _vital_tile(label: str, value, unit: str, accent: str, beat_bpm=None) -> str:
+    cls = "vital hr" if beat_bpm else "vital"
+    style = f"--accent:{accent};"
+    val_cls = "value"
+    if beat_bpm:
+        style += f"--beat-dur:{60.0 / max(beat_bpm, 30):.2f}s;"
+        val_cls += " beat"
+    return (
+        f'<div class="{cls}" style="{style}"><div class="label">{label}</div>'
+        f'<div><span class="{val_cls}">{value}</span><span class="unit">{unit}</span></div></div>'
+    )
+
+
+def _style_fig(fig):
+    fig.update_layout(
+        font=dict(family="Space Grotesk, sans-serif", color="#14201E"),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(255,255,255,0.65)",
+    )
+    fig.update_xaxes(gridcolor="rgba(16,38,43,0.08)")
+    fig.update_yaxes(gridcolor="rgba(16,38,43,0.08)")
+    return fig
+
 
 # Two starter patients so the selector has something real to switch between.
 DEFAULT_PATIENTS = {
@@ -117,12 +226,7 @@ def _run_ticks(patient_id: str, n: int) -> None:
 
 _init_engine()
 
-st.markdown(
-    "##### 🩺 MediTwin — Cardiac Digital Twin "
-    "&nbsp;·&nbsp; <span style='font-weight:400;color:gray;font-size:0.85rem;'>"
-    "Digital Twin Challenge 2026 (Happiest Health)</span>",
-    unsafe_allow_html=True,
-)
+st.markdown(_hero_html(), unsafe_allow_html=True)
 
 with st.sidebar:
     st.header("Patient")
@@ -136,7 +240,12 @@ with st.sidebar:
     st.subheader("🔔 Cardiac Alerts — all patients")
     if st.session_state.alert_log:
         for a in reversed(st.session_state.alert_log[-15:]):
-            st.caption(f"`{a['time']}` **{a['patient']}** {a['message']}")
+            st.markdown(
+                f"<div class='alert-item'><span class='t'>{a['time']}</span>"
+                f"<span class='p'>{a['patient']}</span> "
+                f"<span class='m'>{a['message']}</span></div>",
+                unsafe_allow_html=True,
+            )
     else:
         st.caption("No cardiac alerts yet.")
 
@@ -149,14 +258,22 @@ render_patient_header(patient_id, state.ehr_profile)
 # --- Cardiac ---
 latest_vitals = state.vitals_history[-1] if state.vitals_history else None
 v1, v2, v3 = st.columns(3)
+_hr = latest_vitals["heart_rate"] if latest_vitals else None
 with v1:
-    st.metric("Heart Rate (bpm)", latest_vitals["heart_rate"] if latest_vitals else "—")
+    st.markdown(
+        _vital_tile("Heart rate", _hr if _hr is not None else "—", "bpm", "#FF4462", beat_bpm=_hr),
+        unsafe_allow_html=True,
+    )
 with v2:
-    st.metric("SpO2 (%)", latest_vitals["spo2"] if latest_vitals else "—")
+    st.markdown(
+        _vital_tile("SpO2", latest_vitals["spo2"] if latest_vitals else "—", "%", "#37D6C4"),
+        unsafe_allow_html=True,
+    )
 with v3:
-    st.metric(
-        "Resting BP (trestbps, mmHg)",
-        latest_vitals["trestbps"] if latest_vitals else "—",
+    st.markdown(
+        _vital_tile("Resting BP (trestbps)", latest_vitals["trestbps"] if latest_vitals else "—",
+                    "mmHg", "#FFB648"),
+        unsafe_allow_html=True,
     )
 
 latest_risk = state.risk_scores.get("cardiac")
@@ -165,7 +282,11 @@ if latest_risk:
     if score >= CARDIAC_ALERT_THRESHOLD:
         render_cardiac_alarm(score, CARDIAC_ALERT_THRESHOLD)
     else:
-        st.success(f"Cardiac risk nominal: {score:.2f}")
+        st.markdown(
+            f"<div class='status ok'><span class='pip'></span>"
+            f"Cardiac risk nominal: {score:.2f}</div>",
+            unsafe_allow_html=True,
+        )
 
     chart_col1, chart_col2 = st.columns(2)
 
@@ -175,12 +296,12 @@ if latest_risk:
             vfig = make_subplots(specs=[[{"secondary_y": True}]])
             vfig.add_trace(
                 go.Scatter(y=[v["heart_rate"] for v in vitals_recent], name="Heart rate (bpm)",
-                           mode="lines+markers", line=dict(color="crimson")),
+                           mode="lines+markers", line=dict(color="#FF4462", width=2.5)),
                 secondary_y=False,
             )
             vfig.add_trace(
                 go.Scatter(y=[v["trestbps"] for v in vitals_recent], name="Resting BP (mmHg)",
-                           mode="lines+markers", line=dict(color="darkorange")),
+                           mode="lines+markers", line=dict(color="#FFB648", width=2.5)),
                 secondary_y=True,
             )
             vfig.update_yaxes(title_text="HR (bpm)", secondary_y=False)
@@ -189,31 +310,37 @@ if latest_risk:
                 title="Recent vitals stream", xaxis_title="Recent ticks", height=280,
                 margin=dict(t=40, b=30, l=10, r=10), legend=dict(orientation="h", y=-0.25),
             )
-            st.plotly_chart(vfig, width="stretch")
+            st.plotly_chart(_style_fig(vfig), width="stretch")
 
     history = p["risk_history"]
     with chart_col2:
         if history:
             xs, ys = zip(*history)
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=list(xs), y=list(ys), mode="lines+markers", name="Risk score"))
+            fig.add_trace(go.Scatter(
+                x=list(xs), y=list(ys), mode="lines+markers", name="Risk score",
+                line=dict(color="#0f8f86", width=2.8), marker=dict(size=6),
+            ))
             fig.add_hline(y=CARDIAC_ALERT_THRESHOLD, line_dash="dash", line_color="red")
             fig.update_layout(
                 title="Cardiac risk trend", xaxis_title="Tick", yaxis_title="Risk (0-1)",
                 yaxis_range=[0, 1], height=280, margin=dict(t=40, b=30, l=10, r=10),
             )
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(_style_fig(fig), width="stretch")
 
     top_factors = latest_risk["explanation"].get("top_factors")
     if top_factors:
         with st.expander("Top contributing factors (SHAP)"):
             names, vals = list(top_factors.keys()), list(top_factors.values())
-            colors = ["crimson" if v > 0 else "seagreen" for v in vals]
+            colors = ["#FF4462" if v > 0 else "#33C17A" for v in vals]
             fig2 = go.Figure(go.Bar(x=vals, y=names, orientation="h", marker_color=colors))
             fig2.update_layout(xaxis_title="SHAP contribution", height=240, margin=dict(t=10, b=10))
-            st.plotly_chart(fig2, width="stretch")
+            st.plotly_chart(_style_fig(fig2), width="stretch")
 else:
-    st.info("No cardiac reading yet — click Advance.")
+    st.markdown(
+        "<div class='status idle'>No cardiac reading yet. Click Advance in the sidebar.</div>",
+        unsafe_allow_html=True,
+    )
 
 if auto:
     time.sleep(1)

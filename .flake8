@@ -2,3 +2,7 @@
 max-line-length = 110
 exclude = .git,__pycache__,*/artifacts,.venv,venv,clean_env
 extend-ignore = E203
+# Embedded CSS/JS/HTML strings legitimately run long.
+per-file-ignores =
+    app.py:E501
+    dashboard/patient_header.py:E501
