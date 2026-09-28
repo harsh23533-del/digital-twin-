@@ -97,8 +97,35 @@ header[data-testid="stHeader"] { background: transparent; }
 .alert-item .p { font-weight: 700; }
 .alert-item .m { color: #c4243f; }
 
+/* Auto-run: blinking call-to-action until switched on */
+@keyframes autorun-blink {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,68,98,0.55); border-color: #FF4462; background: rgba(255,68,98,0.12); }
+  50% { box-shadow: 0 0 0 10px rgba(255,68,98,0); border-color: #ff9aa9; background: rgba(255,68,98,0.30); }
+}
+@keyframes hint-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.autorun-hint {
+  font-weight: 700; font-size: 0.9rem; color: #c4243f; margin: 4px 0 6px;
+  animation: hint-blink 1.1s ease-in-out infinite;
+}
+.autorun-live {
+  font-weight: 700; font-size: 0.85rem; color: #17703f; margin: 4px 0 6px;
+}
+.autorun-live .pip {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #33C17A;
+  margin-right: 6px; box-shadow: 0 0 8px #33C17A; animation: hint-blink 1s ease-in-out infinite;
+}
+[data-testid="stSidebar"] [data-testid="stCheckbox"] {
+  border: 2px solid #FF4462; border-radius: 12px; padding: 12px 14px;
+  background: rgba(255,68,98,0.12); animation: autorun-blink 1.1s ease-in-out infinite;
+}
+[data-testid="stSidebar"] [data-testid="stCheckbox"] label p { font-weight: 700; font-size: 1rem; }
+[data-testid="stSidebar"] [data-testid="stCheckbox"]:has(input:checked) {
+  animation: none; border-color: #33C17A; background: rgba(51,193,122,0.14);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .ecg-line, .vital.hr .value.beat { animation: none; stroke-dashoffset: 0; }
+  .ecg-line, .vital.hr .value.beat, .autorun-hint, .autorun-live .pip,
+  [data-testid="stSidebar"] [data-testid="stCheckbox"] { animation: none; stroke-dashoffset: 0; }
 }
 </style>
 """
@@ -229,12 +256,23 @@ _init_engine()
 st.markdown(_hero_html(), unsafe_allow_html=True)
 
 with st.sidebar:
+    if st.session_state.get("auto_run"):
+        st.markdown(
+            "<div class='autorun-live'><span class='pip'></span>Live: updating every second</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            "<div class='autorun-hint'>&#9660; Click Auto-run to watch the twin update live</div>",
+            unsafe_allow_html=True,
+        )
+    auto = st.checkbox("▶ Auto-run (1 tick / sec)", key="auto_run")
+
     st.header("Patient")
     patient_id = st.selectbox("Select patient", list(st.session_state.patients.keys()))
     n_ticks = st.number_input("Ticks to advance", min_value=1, max_value=50, value=1)
     if st.button("▶ Advance", type="primary", width="stretch"):
         _run_ticks(patient_id, int(n_ticks))
-    auto = st.checkbox("Auto-run (1 tick / sec)")
 
     st.divider()
     st.subheader("🔔 Cardiac Alerts — all patients")
