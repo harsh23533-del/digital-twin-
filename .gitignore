@@ -5,3 +5,7 @@ __pycache__/
 venv/
 .DS_Store
 modules/cardiac/artifacts/
+
+.pytest_cache/
+*.egg-info/
+.streamlit/secrets.toml

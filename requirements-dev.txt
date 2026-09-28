@@ -1,0 +1,3 @@
+-r requirements.txt
+flake8
+matplotlib  # only for regenerating docs/architecture.png
