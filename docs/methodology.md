@@ -1,11 +1,11 @@
-# MediTwin — Methodology
+# Digi Twin — Methodology
 
 ## 1. Problem framing
 
 Most disease-risk tools score a patient once, from a single snapshot of data. A
 digital twin is different: it holds one evolving `PatientState` per patient and
 re-scores that state every time new data arrives, so risk is a continuously
-updated line rather than a single number. MediTwin implements this for three
+updated line rather than a single number. Digi Twin implements this for three
 organ systems — cardiac, metabolic, dermatology — behind one shared engine.
 
 ## 2. Architecture

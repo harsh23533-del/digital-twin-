@@ -22,7 +22,7 @@ from modules.cardiac.cardiac_module import CardiacModule
 from config import CARDIAC_ALERT_THRESHOLD as RISK_ALERT_THRESHOLD
 # TODO: move to per-patient EHR profile once multi-patient (Step 9) lands
 
-st.set_page_config(page_title="MediTwin — Cardiac", layout="wide")
+st.set_page_config(page_title="Digi Twin — Cardiac", layout="wide")
 
 
 def _init_session(patient_id: str = "patient_001") -> None:

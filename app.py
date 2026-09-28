@@ -1,5 +1,5 @@
 """
-MediTwin — Cardiac Digital Twin dashboard.
+Digi Twin — Cardiac Digital Twin dashboard.
 
 A patient selector supporting 2+ simulated patients, a chronological
 cardiac alert log, and a persistent header above the live vitals/risk
@@ -25,7 +25,7 @@ from dashboard.cardiac_alarm import render_cardiac_alarm
 
 from config import CARDIAC_ALERT_THRESHOLD
 
-st.set_page_config(page_title="MediTwin", layout="wide", page_icon="🫀")
+st.set_page_config(page_title="Digi Twin", layout="wide", page_icon="🫀")
 
 _CSS = """
 <style>
@@ -113,7 +113,7 @@ _ECG_PATH = (
 
 def _hero_html() -> str:
     return (
-        '<div class="hero"><h1>MediTwin</h1>'
+        '<div class="hero"><h1>Digi Twin</h1>'
         '<p>Cardiac digital twin &nbsp;|&nbsp; Digital Twin Challenge 2026 (Happiest Health)</p>'
         '<svg viewBox="0 0 900 120" preserveAspectRatio="none">'
         f'<path class="ecg-line" d="{_ECG_PATH}"/></svg></div>'

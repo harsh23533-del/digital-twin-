@@ -1,11 +1,11 @@
-# MediTwin — Cardiac Digital Twin
+# Digi Twin — Cardiac Digital Twin
 
 Submission for the **Digital Twin Challenge 2026** (Happiest Health).
 
 ## Problem
 
 Most risk-prediction tools score a patient once from a single snapshot.
-MediTwin instead keeps one evolving **digital twin** per patient — a
+Digi Twin instead keeps one evolving **digital twin** per patient — a
 `PatientState` that gets re-scored on every new vitals reading — for
 the **cardiac** organ system, behind a multi-patient Streamlit app.
 
