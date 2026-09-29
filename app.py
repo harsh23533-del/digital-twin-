@@ -326,6 +326,20 @@ with st.sidebar:
         if live.status == "error" and live.error:
             st.caption(live.error)
 
+        raw = live.get_raw()
+        if raw:
+            fresh = raw["age_sec"] < 5
+            st.markdown(
+                _vital_tile("Live heart rate (raw feed)", raw["heart_rate"], "bpm", "#FF4462",
+                            beat_bpm=raw["heart_rate"] if fresh else None),
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                "receiving now" if fresh else f"last packet {raw['age_sec']:.0f}s ago — may be stale"
+            )
+        elif live.status == "connected":
+            st.caption("Connected — waiting for the first heartbeat packet…")
+
         st.session_state.live_bp_override = st.number_input(
             "Resting BP (manual — device has no BP sensor)",
             min_value=70, max_value=220, value=st.session_state.live_bp_override,
@@ -443,7 +457,12 @@ else:
         unsafe_allow_html=True,
     )
 
-if auto:
+_live_connected = (
+    st.session_state.data_source == "Live BLE heart-rate monitor"
+    and st.session_state.live_source.status == "connected"
+)
+if auto or _live_connected:
     time.sleep(1)
-    _run_ticks(patient_id, 1)
+    if auto:
+        _run_ticks(patient_id, 1)
     st.rerun()

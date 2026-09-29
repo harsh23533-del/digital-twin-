@@ -68,6 +68,15 @@ class LiveHeartRateSource:
     def device_name(self) -> Optional[str]:
         return self._device_name
 
+    def get_raw(self) -> Optional[dict]:
+        """Return whatever the device last actually sent, with no
+        freshness cutoff — unlike get_latest(), which is for feeding the
+        twin and drops stale packets. Used for a live "here's what the
+        device is broadcasting right now" readout in the UI."""
+        if self._latest_hr is None:
+            return None
+        return {"heart_rate": self._latest_hr, "age_sec": time.time() - self._last_update}
+
     def is_running(self) -> bool:
         return bool(self._thread and self._thread.is_alive())
 
