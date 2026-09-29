@@ -21,6 +21,9 @@ that drove it.
   risk score visibly moves.
 - **Alerts**: a chronological, edge-triggered alert log plus a flashing
   alarm banner when risk crosses the threshold.
+- **Live BLE heart-rate mode**: optionally feed the twin from a real
+  Bluetooth heart-rate device instead of the simulator — see
+  [`docs/live_watch.md`](docs/live_watch.md).
 - **Dashboard**: vital-sign tiles, risk trend, SHAP chart, and a 3D patient
   figure with the heart highlighted.
 
@@ -56,6 +59,7 @@ config.py                  Alert threshold (single source of truth)
 twin_engine/
   patient_state.py         PatientState: EHR profile, vitals buffer, risk scores
   scheduler.py             DummySimulator + tick loop
+  live_heart_rate.py       Optional real BLE heart-rate source (see docs/live_watch.md)
 modules/cardiac/
   model.py                 XGBoost training, caching, SHAP explainer
   rolling_features.py      EHR baseline + rolling vitals -> model features
@@ -65,7 +69,7 @@ dashboard/
   cardiac_alarm.py         Flashing / beeping high-risk banner
 data/cardiac/              Cleveland Heart Disease CSV
 tests/test_engine.py       Parity, multi-day, alert-threshold, multi-patient checks
-docs/                      Methodology, architecture diagram (+ its generator)
+docs/                      Methodology, architecture diagram (+ its generator), live-watch setup
 .github/workflows/ci.yml   flake8 + tests on every push and PR to main
 ```
 

@@ -28,6 +28,7 @@ from modules.cardiac.cardiac_module import CardiacModule  # noqa: E402
 from modules.cardiac.model import load_model as load_cardiac_model  # noqa: E402
 from modules.cardiac.rolling_features import build_feature_row  # noqa: E402
 from config import CARDIAC_ALERT_THRESHOLD  # noqa: E402
+from twin_engine.live_heart_rate import parse_hr_measurement  # noqa: E402
 
 _results = []
 
@@ -144,6 +145,22 @@ def test_multi_patient_personalization():
         f"expected higher-risk profile (A) to score above lower-risk (B): A={score_a} B={score_b}"
 
 
+# ------------------------------------------------- 5. BLE HR measurement parsing
+
+def test_hr_measurement_parsing():
+    # 8-bit format (flags bit 0 = 0): heart rate is a single byte.
+    assert parse_hr_measurement(bytes([0x00, 72])) == 72
+    assert parse_hr_measurement(bytes([0x00, 255])) == 255
+
+    # 16-bit format (flags bit 0 = 1): heart rate is little-endian bytes 1-2.
+    assert parse_hr_measurement(bytes([0x01, 0x2C, 0x01])) == 300  # 0x012C
+    assert parse_hr_measurement(bytes([0x01, 0x00, 0x00])) == 0
+
+    # Other flag bits (energy expended, RR-interval, sensor contact) must
+    # not affect which bytes carry the heart rate.
+    assert parse_hr_measurement(bytes([0x0F, 88])) == 88
+
+
 def main():
     print("=" * 70)
     print("1. Parity check (module output vs. model called directly)")
@@ -166,6 +183,10 @@ def main():
         "two distinct patients get distinct, correctly-ordered risk scores",
         test_multi_patient_personalization,
     )
+
+    print()
+    print("5. BLE heart-rate measurement parsing (no hardware needed)")
+    check("HR measurement byte-format decoding (8-bit and 16-bit)", test_hr_measurement_parsing)
 
     print("=" * 70)
     passed = sum(1 for _, ok, _ in _results if ok)

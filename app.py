@@ -11,6 +11,7 @@ Run:
 
 import time
 from datetime import datetime
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 import streamlit as st
@@ -20,6 +21,7 @@ from plotly.subplots import make_subplots
 from twin_engine.patient_state import PatientState
 from twin_engine.scheduler import DummySimulator
 from modules.cardiac.cardiac_module import CardiacModule
+from twin_engine.live_heart_rate import LiveHeartRateSource
 from dashboard.patient_header import render_patient_header
 from dashboard.cardiac_alarm import render_cardiac_alarm
 
@@ -204,6 +206,9 @@ def _init_engine() -> None:
         # model only loads/trains once).
         st.session_state.cardiac_module = CardiacModule()
         st.session_state.alert_log = []  # chronological, across all patients
+        st.session_state.data_source = "Simulator"
+        st.session_state.live_source = LiveHeartRateSource()
+        st.session_state.live_bp_override = 120
 
 
 _IST = ZoneInfo("Asia/Kolkata")
@@ -230,15 +235,36 @@ def _check_alerts(patient_id: str, state: PatientState) -> None:
         alert_state["cardiac"] = is_high
 
 
+def _next_reading(patient_id: str) -> Optional[dict]:
+    """Get one vitals reading from whichever data source is active. Returns
+    None when live mode has no fresh reading yet (waiting for the device) —
+    unlike the simulator, a live tick can genuinely have nothing to report."""
+    if st.session_state.data_source == "Live BLE heart-rate monitor":
+        reading = st.session_state.live_source.get_latest()
+        if reading is None:
+            return None
+        # The HR service carries no BP/SpO2 — merge in the manual BP override
+        # so the model's rolling trestbps feature still gets real input.
+        return {**reading, "trestbps": st.session_state.live_bp_override}
+
+    p = st.session_state.patients[patient_id]
+    tick_count = p["tick_count"]
+    _, reading = p["simulator"].next_reading(patient_id, tick_count)
+    return reading
+
+
 def _run_ticks(patient_id: str, n: int) -> None:
     p = st.session_state.patients[patient_id]
-    state, simulator = p["state"], p["simulator"]
+    state = p["state"]
     cardiac = st.session_state.cardiac_module
 
     for _ in range(n):
+        reading = _next_reading(patient_id)
+        if reading is None:
+            break  # live mode with no signal yet — nothing to record this tick
+
         tick_count = p["tick_count"]
-        reading_type, reading = simulator.next_reading(patient_id, tick_count)
-        state.add_reading(reading_type, reading)
+        state.add_reading("vitals", reading)
         cardiac.process(state)
 
         latest = state.risk_scores.get("cardiac")
@@ -267,6 +293,43 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
     auto = st.checkbox("▶ Auto-run (1 tick / sec)", key="auto_run")
+
+    st.divider()
+    st.subheader("Data source")
+    st.radio(
+        "Feed vitals from", ["Simulator", "Live BLE heart-rate monitor"],
+        key="data_source", label_visibility="collapsed",
+    )
+    if st.session_state.data_source == "Live BLE heart-rate monitor":
+        live = st.session_state.live_source
+        st.caption(
+            "Connects to any device broadcasting the standard Bluetooth "
+            "Heart Rate service (0x180D) — e.g. a chest strap. Most budget "
+            "smartwatches don't expose this; see docs/live_watch.md."
+        )
+        name_filter = st.text_input("Device name contains (optional)", value=live.name_filter or "")
+        lc1, lc2 = st.columns(2)
+        if lc1.button("Connect", width="stretch", disabled=live.is_running()):
+            live.name_filter = name_filter or None
+            live.start()
+        if lc2.button("Disconnect", width="stretch", disabled=not live.is_running()):
+            live.stop()
+
+        status_map = {
+            "idle": ("idle", "idle"), "scanning": ("scanning for device…", "idle"),
+            "connected": (f"connected — {live.device_name or 'device'}", "ok"),
+            "error": ("error", "idle"), "stopped": ("disconnected", "idle"),
+        }
+        label, cls = status_map.get(live.status, (live.status, "idle"))
+        st.markdown(f"<div class='status {cls}'><span class='pip'></span>{label}</div>",
+                    unsafe_allow_html=True)
+        if live.status == "error" and live.error:
+            st.caption(live.error)
+
+        st.session_state.live_bp_override = st.number_input(
+            "Resting BP (manual — device has no BP sensor)",
+            min_value=70, max_value=220, value=st.session_state.live_bp_override,
+        )
 
     st.header("Patient")
     patient_id = st.selectbox("Select patient", list(st.session_state.patients.keys()))
@@ -304,12 +367,12 @@ with v1:
     )
 with v2:
     st.markdown(
-        _vital_tile("SpO2", latest_vitals["spo2"] if latest_vitals else "—", "%", "#37D6C4"),
+        _vital_tile("SpO2", latest_vitals.get("spo2", "—") if latest_vitals else "—", "%", "#37D6C4"),
         unsafe_allow_html=True,
     )
 with v3:
     st.markdown(
-        _vital_tile("Resting BP (trestbps)", latest_vitals["trestbps"] if latest_vitals else "—",
+        _vital_tile("Resting BP (trestbps)", latest_vitals.get("trestbps", "—") if latest_vitals else "—",
                     "mmHg", "#FFB648"),
         unsafe_allow_html=True,
     )
