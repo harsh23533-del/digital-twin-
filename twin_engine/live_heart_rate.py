@@ -46,8 +46,13 @@ def parse_hr_measurement(data: bytes) -> int:
 class LiveHeartRateSource:
     """Background BLE client exposing the most recent heart-rate reading."""
 
-    def __init__(self, name_filter: Optional[str] = None):
+    def __init__(self, name_filter: Optional[str] = None, target_address: Optional[str] = None):
         self.name_filter = name_filter or None
+        # When set, connect to this exact device (by BLE address) regardless
+        # of whether it was seen advertising the Heart Rate service — set by
+        # clicking a specific device in the sidebar's scan results. Overrides
+        # name_filter.
+        self.target_address = target_address or None
         self._latest_hr: Optional[int] = None
         self._last_update: float = 0.0
         self._device_name: Optional[str] = None
@@ -128,6 +133,12 @@ class LiveHeartRateSource:
             return
 
         def _matches(device, adv) -> bool:
+            if self.target_address:
+                # Exact device picked from the scan list — connect to it
+                # regardless of what it was seen advertising; whether it
+                # actually has the Heart Rate service is found out once
+                # connected (see the start_notify try/except below).
+                return device.address.lower() == self.target_address.lower()
             has_hr_service = HR_SERVICE_UUID in [u.lower() for u in (adv.service_uuids or [])]
             if not has_hr_service:
                 return False
@@ -138,18 +149,33 @@ class LiveHeartRateSource:
         device = await BleakScanner.find_device_by_filter(_matches, timeout=15.0)
         if device is None:
             self._status = "error"
-            self._error = (
-                "No device advertising the standard Heart Rate service (0x180D) was found "
-                "in 15s. Many budget smartwatches (incl. Noise) don't expose this service — "
-                "see docs/live_watch.md."
-            )
+            if self.target_address:
+                self._error = (
+                    f"Device {self.target_address} was not found — make sure it's still "
+                    "powered on, in range, and not connected to another app."
+                )
+            else:
+                self._error = (
+                    "No device advertising the standard Heart Rate service (0x180D) was found "
+                    "in 15s. Many budget smartwatches (incl. Noise) don't expose this service — "
+                    "see docs/live_watch.md."
+                )
             return
 
         try:
             async with BleakClient(device) as client:
                 self._device_name = device.name or device.address
+                try:
+                    await client.start_notify(HR_MEASUREMENT_UUID, self._notification_handler)
+                except Exception:
+                    self._status = "error"
+                    self._error = (
+                        f"Connected to {self._device_name}, but it doesn't expose the standard "
+                        "Heart Rate characteristic (0x2A37) — its heart-rate data (if any) uses "
+                        "a proprietary format this app can't read. See docs/live_watch.md."
+                    )
+                    return
                 self._status = "connected"
-                await client.start_notify(HR_MEASUREMENT_UUID, self._notification_handler)
                 while not self._stop_event.is_set():
                     await asyncio.sleep(0.5)
                 await client.stop_notify(HR_MEASUREMENT_UUID)

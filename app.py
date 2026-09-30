@@ -311,6 +311,7 @@ with st.sidebar:
         lc1, lc2 = st.columns(2)
         if lc1.button("Connect", width="stretch", disabled=live.is_running()):
             live.name_filter = name_filter or None
+            live.target_address = None
             live.start()
         if lc2.button("Disconnect", width="stretch", disabled=not live.is_running()):
             live.stop()
@@ -334,12 +335,20 @@ with st.sidebar:
                 st.caption(f"{len(results)} device(s) found — ♥ has the standard Heart Rate service")
                 for d in results:
                     mark = "♥ " if d["has_heart_rate"] else "· "
-                    st.markdown(
-                        f"<div class='alert-item'>{mark}<b>{d['name']}</b> "
-                        f"<span class='t'>{d['address']}</span> "
-                        f"<span class='t'>RSSI {d['rssi']}</span></div>",
-                        unsafe_allow_html=True,
-                    )
+                    rc1, rc2 = st.columns([3, 1])
+                    with rc1:
+                        st.markdown(
+                            f"<div class='alert-item'>{mark}<b>{d['name']}</b> "
+                            f"<span class='t'>{d['address']}</span> "
+                            f"<span class='t'>RSSI {d['rssi']}</span></div>",
+                            unsafe_allow_html=True,
+                        )
+                    with rc2:
+                        if st.button("Connect", key=f"connect_{d['address']}",
+                                     width="stretch", disabled=live.is_running()):
+                            live.target_address = d["address"]
+                            live.name_filter = None
+                            live.start()
 
         status_map = {
             "idle": ("idle", "idle"), "scanning": ("scanning for device…", "idle"),
