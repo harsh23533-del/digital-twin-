@@ -159,3 +159,35 @@ class LiveHeartRateSource:
         finally:
             if self._status != "error":
                 self._status = "stopped"
+
+
+def scan_devices(timeout: float = 8.0) -> list[dict]:
+    """One-shot BLE scan (blocking) returning every nearby advertising
+    device — not just ones with the Heart Rate service — so the UI can
+    show the user exactly what nRF Connect would show them. Each entry:
+    {"name", "address", "rssi", "service_uuids", "has_heart_rate"}.
+
+    Raises ImportError if bleak isn't installed, and whatever bleak/the
+    OS raises on scan failure (e.g. no Bluetooth adapter) — callers
+    should catch and surface these as a friendly message.
+    """
+    import asyncio
+
+    from bleak import BleakScanner
+
+    async def _scan():
+        devices = await BleakScanner.discover(timeout=timeout, return_adv=True)
+        results = []
+        for device, adv in devices.values():
+            uuids = [u.lower() for u in (adv.service_uuids or [])]
+            results.append({
+                "name": device.name or "(unnamed)",
+                "address": device.address,
+                "rssi": adv.rssi,
+                "service_uuids": uuids,
+                "has_heart_rate": HR_SERVICE_UUID in uuids,
+            })
+        results.sort(key=lambda d: (not d["has_heart_rate"], -(d["rssi"] or -999)))
+        return results
+
+    return asyncio.run(_scan())

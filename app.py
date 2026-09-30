@@ -21,7 +21,7 @@ from plotly.subplots import make_subplots
 from twin_engine.patient_state import PatientState
 from twin_engine.scheduler import DummySimulator
 from modules.cardiac.cardiac_module import CardiacModule
-from twin_engine.live_heart_rate import LiveHeartRateSource
+from twin_engine.live_heart_rate import LiveHeartRateSource, scan_devices
 from dashboard.patient_header import render_patient_header
 from dashboard.cardiac_alarm import render_cardiac_alarm
 
@@ -314,6 +314,32 @@ with st.sidebar:
             live.start()
         if lc2.button("Disconnect", width="stretch", disabled=not live.is_running()):
             live.stop()
+
+        if st.button("🔍 Scan for nearby BLE devices (8s)", width="stretch"):
+            with st.spinner("Scanning… move the watch close to this computer"):
+                try:
+                    st.session_state.scan_results = scan_devices(timeout=8.0)
+                    st.session_state.scan_error = None
+                except Exception as exc:
+                    st.session_state.scan_results = None
+                    st.session_state.scan_error = str(exc)
+
+        if st.session_state.get("scan_error"):
+            st.caption(f"Scan failed: {st.session_state.scan_error}")
+        elif st.session_state.get("scan_results") is not None:
+            results = st.session_state.scan_results
+            if not results:
+                st.caption("No BLE devices found nearby.")
+            else:
+                st.caption(f"{len(results)} device(s) found — ♥ has the standard Heart Rate service")
+                for d in results:
+                    mark = "♥ " if d["has_heart_rate"] else "· "
+                    st.markdown(
+                        f"<div class='alert-item'>{mark}<b>{d['name']}</b> "
+                        f"<span class='t'>{d['address']}</span> "
+                        f"<span class='t'>RSSI {d['rssi']}</span></div>",
+                        unsafe_allow_html=True,
+                    )
 
         status_map = {
             "idle": ("idle", "idle"), "scanning": ("scanning for device…", "idle"),
