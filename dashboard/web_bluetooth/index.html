@@ -78,7 +78,13 @@ if (!navigator.bluetooth) {
     setStatus("Opening the browser's device picker…");
     try {
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [HR_SERVICE] }],
+        // Show every nearby device in the browser's picker — not just ones
+        // advertising the Heart Rate service — so a watch can be selected
+        // even if it turns out not to share heart-rate data (e.g. it only
+        // exposes a proprietary service). optionalServices is still
+        // required to be allowed to read heart_rate afterwards if present.
+        acceptAllDevices: true,
+        optionalServices: [HR_SERVICE],
       });
       setStatus(`Connecting to ${device.name || "device"}…`);
 
@@ -89,7 +95,24 @@ if (!navigator.bluetooth) {
       });
 
       const server = await device.gatt.connect();
-      const service = await server.getPrimaryService(HR_SERVICE);
+
+      let service;
+      try {
+        service = await server.getPrimaryService(HR_SERVICE);
+      } catch (svcErr) {
+        setStatus(
+          `Connected to ${device.name || "device"}, but it doesn't expose the standard ` +
+          "Heart Rate service — its heart-rate data (if any) uses a proprietary format " +
+          "this app can't read. See docs/live_watch.md.", "err"
+        );
+        setValue({
+          status: "error", device_name: device.name || null,
+          error: "No standard Heart Rate service on this device.",
+        });
+        btn.disabled = false;
+        device.gatt.disconnect();
+        return;
+      }
       const characteristic = await service.getCharacteristic(HR_MEASUREMENT);
       await characteristic.startNotifications();
 

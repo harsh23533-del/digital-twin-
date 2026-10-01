@@ -98,11 +98,16 @@ device picker; the person selects their device there, not in this app.
 - **Chrome or Edge only** — Web Bluetooth isn't implemented in Safari or
   Firefox.
 - **HTTPS**, or `localhost` during local development.
-- Same **0x180D-only** limitation as the server-side option: it reads
-  the standard Heart Rate service and nothing else, so the same
-  devices that don't work with the server-side mode (including the
-  Noise ColorFit Pro 3) won't work here either — the limitation is the
-  device's firmware, not which Bluetooth stack is asking.
+- The device picker shows **every** nearby Bluetooth device (not just
+  ones already advertising the Heart Rate service), so a watch can be
+  selected to try even if it turns out not to share data — same as the
+  "Scan for nearby BLE devices" list in the server-side option above.
+  But the same **0x180D-only** limitation still applies for actually
+  reading data: it reads the standard Heart Rate service and nothing
+  else, so the same devices that don't work with the server-side mode
+  (including the Noise ColorFit Pro 3) will connect but then show
+  "doesn't expose the standard Heart Rate service" — the limitation is
+  the device's firmware, not which Bluetooth stack is asking.
 
 Both live modes feed the twin the same way and share the same manual
 Resting BP input; switching between them in the sidebar doesn't lose
