@@ -48,8 +48,10 @@ streamlit run app.py
 ```
 
 In the sidebar: pick **Live BLE heart-rate monitor**, optionally type
-part of the device's name to narrow the scan, and click **Connect**. The
-status line shows `scanning`, `connected — <device name>`, or an error.
+part of the device's name to narrow the scan, and click **Connect** —
+or use **Scan for nearby BLE devices** to see everything advertising
+nearby and click **Connect** next to a specific one. The status line
+shows `scanning`, `connected — <device name>`, or an error.
 
 The Heart Rate service carries heart rate only — no blood pressure or
 SpO2 — so live mode also shows a manual **Resting BP** number input,
@@ -68,3 +70,40 @@ feature still gets real input. SpO2 shows `—` in live mode.
 - Prototype-grade error handling: a malformed BLE packet is logged and
   ignored rather than crashing the connection, but there's no automatic
   reconnect after a real disconnect — click **Connect** again.
+
+## Alternative: Live BLE (this browser — Web Bluetooth)
+
+The sidebar also offers **"Live BLE (this browser — Web Bluetooth)"**,
+a second, independent way to get a live heart rate — this one connects
+using the **viewer's own browser Bluetooth adapter** instead of the
+server's.
+
+**Why this exists.** The server-side option above only works when
+`streamlit run app.py` is executing on a machine with a real Bluetooth
+adapter — fine for a solo demo on your own laptop, but useless once the
+app is deployed or opened by someone else: their device's heart-rate
+monitor can't be reached by the server's Bluetooth. Web Bluetooth mode
+fixes that — the browser itself talks to whatever device the person
+viewing the page pairs, with no server-side Bluetooth hardware needed at
+all.
+
+**How it works.** It's a small custom Streamlit component
+(`dashboard/web_bluetooth/`) using the browser's
+[`navigator.bluetooth`](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API)
+API — no extra Python package needed, since `declare_component` is part
+of Streamlit core. Clicking **"Pair a device"** opens the browser's own
+device picker; the person selects their device there, not in this app.
+
+**Requirements:**
+- **Chrome or Edge only** — Web Bluetooth isn't implemented in Safari or
+  Firefox.
+- **HTTPS**, or `localhost` during local development.
+- Same **0x180D-only** limitation as the server-side option: it reads
+  the standard Heart Rate service and nothing else, so the same
+  devices that don't work with the server-side mode (including the
+  Noise ColorFit Pro 3) won't work here either — the limitation is the
+  device's firmware, not which Bluetooth stack is asking.
+
+Both live modes feed the twin the same way and share the same manual
+Resting BP input; switching between them in the sidebar doesn't lose
+your place in the simulator or any patient's history.

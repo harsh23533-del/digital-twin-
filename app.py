@@ -22,6 +22,7 @@ from twin_engine.patient_state import PatientState
 from twin_engine.scheduler import DummySimulator
 from modules.cardiac.cardiac_module import CardiacModule
 from twin_engine.live_heart_rate import LiveHeartRateSource, scan_devices
+from dashboard.web_bluetooth import web_bluetooth_reading
 from dashboard.patient_header import render_patient_header
 from dashboard.cardiac_alarm import render_cardiac_alarm
 
@@ -247,6 +248,16 @@ def _next_reading(patient_id: str) -> Optional[dict]:
         # so the model's rolling trestbps feature still gets real input.
         return {**reading, "trestbps": st.session_state.live_bp_override}
 
+    if st.session_state.data_source == "Live BLE (this browser — Web Bluetooth)":
+        wb = st.session_state.get("web_bt_reading") or {}
+        hr = wb.get("heart_rate")
+        if hr is None:
+            return None
+        age_sec = (time.time() * 1000 - wb.get("ts", 0)) / 1000
+        if age_sec > 10:
+            return None  # stale — same freshness rule as the server-side live source
+        return {"heart_rate": hr, "trestbps": st.session_state.live_bp_override}
+
     p = st.session_state.patients[patient_id]
     tick_count = p["tick_count"]
     _, reading = p["simulator"].next_reading(patient_id, tick_count)
@@ -297,7 +308,8 @@ with st.sidebar:
     st.divider()
     st.subheader("Data source")
     st.radio(
-        "Feed vitals from", ["Simulator", "Live BLE heart-rate monitor"],
+        "Feed vitals from",
+        ["Simulator", "Live BLE heart-rate monitor", "Live BLE (this browser — Web Bluetooth)"],
         key="data_source", label_visibility="collapsed",
     )
     if st.session_state.data_source == "Live BLE heart-rate monitor":
@@ -378,6 +390,46 @@ with st.sidebar:
         st.session_state.live_bp_override = st.number_input(
             "Resting BP (manual — device has no BP sensor)",
             min_value=70, max_value=220, value=st.session_state.live_bp_override,
+        )
+
+    elif st.session_state.data_source == "Live BLE (this browser — Web Bluetooth)":
+        st.caption(
+            "Uses THIS browser's own Bluetooth adapter (Chrome/Edge only) instead of the "
+            "server's — the right choice if someone opens this app on a different device "
+            "and their heart-rate monitor should be the one that connects. Same "
+            "0x180D-only limitation as the server-side option above; see docs/live_watch.md."
+        )
+        wb = web_bluetooth_reading(key="web_bt")
+        st.session_state.web_bt_reading = wb
+
+        wb_status_map = {
+            "idle": ("idle — click Pair below", "idle"),
+            "connected": (f"connected — {wb.get('device_name') or 'device'}", "ok"),
+            "disconnected": ("disconnected", "idle"),
+            "error": ("error", "idle"),
+        }
+        label, cls = wb_status_map.get(wb.get("status"), (wb.get("status", "idle"), "idle"))
+        st.markdown(f"<div class='status {cls}'><span class='pip'></span>{label}</div>",
+                    unsafe_allow_html=True)
+        if wb.get("status") == "error" and wb.get("error"):
+            st.caption(wb["error"])
+
+        if wb.get("heart_rate") is not None:
+            age = (time.time() * 1000 - wb.get("ts", 0)) / 1000
+            fresh = age < 5
+            st.markdown(
+                _vital_tile("Live heart rate (raw feed)", wb["heart_rate"], "bpm", "#FF4462",
+                            beat_bpm=wb["heart_rate"] if fresh else None),
+                unsafe_allow_html=True,
+            )
+            st.caption("receiving now" if fresh else f"last packet {age:.0f}s ago — may be stale")
+        elif wb.get("status") == "connected":
+            st.caption("Connected — waiting for the first heartbeat packet…")
+
+        st.session_state.live_bp_override = st.number_input(
+            "Resting BP (manual — device has no BP sensor)",
+            min_value=70, max_value=220, value=st.session_state.live_bp_override,
+            key="web_bt_bp_override",
         )
 
     st.header("Patient")

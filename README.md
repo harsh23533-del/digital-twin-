@@ -22,7 +22,9 @@ that drove it.
 - **Alerts**: a chronological, edge-triggered alert log plus a flashing
   alarm banner when risk crosses the threshold.
 - **Live BLE heart-rate mode**: optionally feed the twin from a real
-  Bluetooth heart-rate device instead of the simulator — see
+  Bluetooth heart-rate device instead of the simulator, from either the
+  server's Bluetooth adapter or — so it also works once deployed — the
+  viewer's own browser (Web Bluetooth, Chrome/Edge). See
   [`docs/live_watch.md`](docs/live_watch.md).
 - **Dashboard**: vital-sign tiles, risk trend, SHAP chart, and a 3D patient
   figure with the heart highlighted.
@@ -67,6 +69,7 @@ modules/cardiac/
 dashboard/
   patient_header.py        Patient info panel with the 3D figure
   cardiac_alarm.py         Flashing / beeping high-risk banner
+  web_bluetooth/            Browser-side Web Bluetooth component (see docs/live_watch.md)
 data/cardiac/              Cleveland Heart Disease CSV
 tests/test_engine.py       Parity, multi-day, alert-threshold, multi-patient checks
 docs/                      Methodology, architecture diagram (+ its generator), live-watch setup
