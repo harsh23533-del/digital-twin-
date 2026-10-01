@@ -344,8 +344,10 @@ with st.sidebar:
             if not results:
                 st.caption("No BLE devices found nearby.")
             else:
-                st.caption(f"{len(results)} device(s) found — ♥ has the standard Heart Rate service")
-                for d in results:
+                hr_capable = [d for d in results if d["has_heart_rate"]]
+                others = [d for d in results if not d["has_heart_rate"]]
+
+                def _render_device_row(d):
                     mark = "♥ " if d["has_heart_rate"] else "· "
                     rc1, rc2 = st.columns([3, 1])
                     with rc1:
@@ -361,6 +363,25 @@ with st.sidebar:
                             live.target_address = d["address"]
                             live.name_filter = None
                             live.start()
+
+                summary_cls = "ok" if hr_capable else "idle"
+                st.markdown(
+                    f"<div class='status {summary_cls}'><span class='pip'></span>"
+                    f"{len(hr_capable)} of {len(results)} can share heart rate</div>",
+                    unsafe_allow_html=True,
+                )
+                if hr_capable:
+                    for d in hr_capable:
+                        _render_device_row(d)
+                else:
+                    st.caption("None of the nearby devices advertise the standard Heart "
+                               "Rate service — see docs/live_watch.md.")
+
+                if others:
+                    with st.expander(f"Other nearby devices ({len(others)}, no Heart Rate service)"):
+                        st.caption("Shown for reference — connecting won't produce live readings.")
+                        for d in others:
+                            _render_device_row(d)
 
         status_map = {
             "idle": ("idle", "idle"), "scanning": ("scanning for device…", "idle"),
