@@ -1,19 +1,17 @@
 """
 Web Bluetooth component — reads live heart rate using the VIEWER's own
-browser Bluetooth adapter (Chrome/Edge only), not the server's.
-
-This is the browser-side counterpart to twin_engine/live_heart_rate.py,
-which connects using the Bluetooth adapter of the machine running
-`streamlit run` instead. Use this one when the app is opened by someone
-else (deployed, or opened from a different device) and *their* device's
-heart-rate monitor should be the one that connects — not the server's.
+browser Bluetooth adapter (Chrome/Edge only), not a server's. This is
+what powers the "Live BLE (this browser — Web Bluetooth)" data source
+in app.py — it works the same way whether the app is run locally or
+deployed and opened on someone else's device, since the browser itself
+does the connecting.
 
 Needs no extra Python package (declare_component is part of Streamlit
 core); the whole implementation is the vanilla-JS file next to this
-module. Like the server-side source, it only works with devices that
-implement the standard Bluetooth Heart Rate service (0x180D) — most
-budget smartwatches, including the Noise ColorFit Pro 3 used during
-development, do not expose it. See docs/live_watch.md.
+module. It only works with devices that implement the standard
+Bluetooth Heart Rate service (0x180D) — most budget smartwatches,
+including the Noise ColorFit Pro 3 used during development, do not
+expose it. See docs/live_watch.md.
 """
 
 import os

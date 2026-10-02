@@ -21,7 +21,6 @@ from plotly.subplots import make_subplots
 from twin_engine.patient_state import PatientState
 from twin_engine.scheduler import DummySimulator
 from modules.cardiac.cardiac_module import CardiacModule
-from twin_engine.live_heart_rate import LiveHeartRateSource, scan_devices
 from dashboard.web_bluetooth import web_bluetooth_reading
 from dashboard.patient_header import render_patient_header
 from dashboard.cardiac_alarm import render_cardiac_alarm
@@ -208,7 +207,6 @@ def _init_engine() -> None:
         st.session_state.cardiac_module = CardiacModule()
         st.session_state.alert_log = []  # chronological, across all patients
         st.session_state.data_source = "Simulator"
-        st.session_state.live_source = LiveHeartRateSource()
         st.session_state.live_bp_override = 120
 
 
@@ -240,14 +238,6 @@ def _next_reading(patient_id: str) -> Optional[dict]:
     """Get one vitals reading from whichever data source is active. Returns
     None when live mode has no fresh reading yet (waiting for the device) —
     unlike the simulator, a live tick can genuinely have nothing to report."""
-    if st.session_state.data_source == "Live BLE heart-rate monitor":
-        reading = st.session_state.live_source.get_latest()
-        if reading is None:
-            return None
-        # The HR service carries no BP/SpO2 — merge in the manual BP override
-        # so the model's rolling trestbps feature still gets real input.
-        return {**reading, "trestbps": st.session_state.live_bp_override}
-
     if st.session_state.data_source == "Live BLE (this browser — Web Bluetooth)":
         wb = st.session_state.get("web_bt_reading") or {}
         hr = wb.get("heart_rate")
@@ -255,7 +245,9 @@ def _next_reading(patient_id: str) -> Optional[dict]:
             return None
         age_sec = (time.time() * 1000 - wb.get("ts", 0)) / 1000
         if age_sec > 10:
-            return None  # stale — same freshness rule as the server-side live source
+            return None  # stale — device likely out of range or disconnected
+        # The Heart Rate service carries no BP/SpO2 — merge in the manual BP
+        # override so the model's rolling trestbps feature still gets real input.
         return {"heart_rate": hr, "trestbps": st.session_state.live_bp_override}
 
     p = st.session_state.patients[patient_id]
@@ -309,116 +301,15 @@ with st.sidebar:
     st.subheader("Data source")
     st.radio(
         "Feed vitals from",
-        ["Simulator", "Live BLE heart-rate monitor", "Live BLE (this browser — Web Bluetooth)"],
+        ["Simulator", "Live BLE (this browser — Web Bluetooth)"],
         key="data_source", label_visibility="collapsed",
     )
-    if st.session_state.data_source == "Live BLE heart-rate monitor":
-        live = st.session_state.live_source
+    if st.session_state.data_source == "Live BLE (this browser — Web Bluetooth)":
         st.caption(
-            "Connects to any device broadcasting the standard Bluetooth "
-            "Heart Rate service (0x180D) — e.g. a chest strap. Most budget "
-            "smartwatches don't expose this; see docs/live_watch.md."
-        )
-        name_filter = st.text_input("Device name contains (optional)", value=live.name_filter or "")
-        lc1, lc2 = st.columns(2)
-        if lc1.button("Connect", width="stretch", disabled=live.is_running()):
-            live.name_filter = name_filter or None
-            live.target_address = None
-            live.start()
-        if lc2.button("Disconnect", width="stretch", disabled=not live.is_running()):
-            live.stop()
-
-        if st.button("🔍 Scan for nearby BLE devices (8s)", width="stretch"):
-            with st.spinner("Scanning… move the watch close to this computer"):
-                try:
-                    st.session_state.scan_results = scan_devices(timeout=8.0)
-                    st.session_state.scan_error = None
-                except Exception as exc:
-                    st.session_state.scan_results = None
-                    st.session_state.scan_error = str(exc)
-
-        if st.session_state.get("scan_error"):
-            st.caption(f"Scan failed: {st.session_state.scan_error}")
-        elif st.session_state.get("scan_results") is not None:
-            results = st.session_state.scan_results
-            if not results:
-                st.caption("No BLE devices found nearby.")
-            else:
-                hr_capable = [d for d in results if d["has_heart_rate"]]
-                others = [d for d in results if not d["has_heart_rate"]]
-
-                def _render_device_row(d):
-                    mark = "♥ " if d["has_heart_rate"] else "· "
-                    rc1, rc2 = st.columns([3, 1])
-                    with rc1:
-                        st.markdown(
-                            f"<div class='alert-item'>{mark}<b>{d['name']}</b> "
-                            f"<span class='t'>{d['address']}</span> "
-                            f"<span class='t'>RSSI {d['rssi']}</span></div>",
-                            unsafe_allow_html=True,
-                        )
-                    with rc2:
-                        if st.button("Connect", key=f"connect_{d['address']}",
-                                     width="stretch", disabled=live.is_running()):
-                            live.target_address = d["address"]
-                            live.name_filter = None
-                            live.start()
-
-                summary_cls = "ok" if hr_capable else "idle"
-                st.markdown(
-                    f"<div class='status {summary_cls}'><span class='pip'></span>"
-                    f"{len(hr_capable)} of {len(results)} can share heart rate</div>",
-                    unsafe_allow_html=True,
-                )
-                if hr_capable:
-                    for d in hr_capable:
-                        _render_device_row(d)
-                else:
-                    st.caption("None of the nearby devices advertise the standard Heart "
-                               "Rate service — see docs/live_watch.md.")
-
-                if others:
-                    with st.expander(f"Other nearby devices ({len(others)}, no Heart Rate service)"):
-                        st.caption("Shown for reference — connecting won't produce live readings.")
-                        for d in others:
-                            _render_device_row(d)
-
-        status_map = {
-            "idle": ("idle", "idle"), "scanning": ("scanning for device…", "idle"),
-            "connected": (f"connected — {live.device_name or 'device'}", "ok"),
-            "error": ("error", "idle"), "stopped": ("disconnected", "idle"),
-        }
-        label, cls = status_map.get(live.status, (live.status, "idle"))
-        st.markdown(f"<div class='status {cls}'><span class='pip'></span>{label}</div>",
-                    unsafe_allow_html=True)
-        if live.status == "error" and live.error:
-            st.caption(live.error)
-
-        raw = live.get_raw()
-        if raw:
-            fresh = raw["age_sec"] < 5
-            st.markdown(
-                _vital_tile("Live heart rate (raw feed)", raw["heart_rate"], "bpm", "#FF4462",
-                            beat_bpm=raw["heart_rate"] if fresh else None),
-                unsafe_allow_html=True,
-            )
-            st.caption(
-                "receiving now" if fresh else f"last packet {raw['age_sec']:.0f}s ago — may be stale"
-            )
-        elif live.status == "connected":
-            st.caption("Connected — waiting for the first heartbeat packet…")
-
-        st.session_state.live_bp_override = st.number_input(
-            "Resting BP (manual — device has no BP sensor)",
-            min_value=70, max_value=220, value=st.session_state.live_bp_override,
-        )
-
-    elif st.session_state.data_source == "Live BLE (this browser — Web Bluetooth)":
-        st.caption(
-            "Uses THIS browser's own Bluetooth adapter (Chrome/Edge only) instead of the "
-            "server's — the right choice if someone opens this app on a different device "
-            "and their heart-rate monitor should be the one that connects. Same "
-            "0x180D-only limitation as the server-side option above; see docs/live_watch.md."
+            "Uses this browser's own Bluetooth adapter (Chrome/Edge only, HTTPS or "
+            "localhost) to read a real device's heart rate. Only works with devices "
+            "that expose the standard Heart Rate service (0x180D) — most budget "
+            "smartwatches don't; see docs/live_watch.md."
         )
         wb = web_bluetooth_reading(key="web_bt")
         st.session_state.web_bt_reading = wb
@@ -565,12 +456,7 @@ else:
         unsafe_allow_html=True,
     )
 
-_live_connected = (
-    st.session_state.data_source == "Live BLE heart-rate monitor"
-    and st.session_state.live_source.status == "connected"
-)
-if auto or _live_connected:
+if auto:
     time.sleep(1)
-    if auto:
-        _run_ticks(patient_id, 1)
+    _run_ticks(patient_id, 1)
     st.rerun()

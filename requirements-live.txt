@@ -1,4 +1,0 @@
-# Optional: only needed for "Live BLE heart-rate monitor" mode in app.py.
-# Requires a real Bluetooth adapter on the machine running `streamlit run` —
-# this will not work on a cloud host with no Bluetooth hardware.
-bleak==3.0.1

@@ -1,10 +1,7 @@
-.PHONY: install install-live run test lint docs
+.PHONY: install run test lint docs
 
 install:
 	pip install -r requirements-dev.txt
-
-install-live:
-	pip install -r requirements-live.txt
 
 run:
 	streamlit run app.py

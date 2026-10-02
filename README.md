@@ -22,10 +22,9 @@ that drove it.
 - **Alerts**: a chronological, edge-triggered alert log plus a flashing
   alarm banner when risk crosses the threshold.
 - **Live BLE heart-rate mode**: optionally feed the twin from a real
-  Bluetooth heart-rate device instead of the simulator, from either the
-  server's Bluetooth adapter or — so it also works once deployed — the
-  viewer's own browser (Web Bluetooth, Chrome/Edge). See
-  [`docs/live_watch.md`](docs/live_watch.md).
+  Bluetooth heart-rate device using the viewer's own browser (Web
+  Bluetooth, Chrome/Edge — works the same whether run locally or
+  deployed). See [`docs/live_watch.md`](docs/live_watch.md).
 - **Dashboard**: vital-sign tiles, risk trend, SHAP chart, and a 3D patient
   figure with the heart highlighted.
 
@@ -61,7 +60,6 @@ config.py                  Alert threshold (single source of truth)
 twin_engine/
   patient_state.py         PatientState: EHR profile, vitals buffer, risk scores
   scheduler.py             DummySimulator + tick loop
-  live_heart_rate.py       Optional real BLE heart-rate source (see docs/live_watch.md)
 modules/cardiac/
   model.py                 XGBoost training, caching, SHAP explainer
   rolling_features.py      EHR baseline + rolling vitals -> model features
