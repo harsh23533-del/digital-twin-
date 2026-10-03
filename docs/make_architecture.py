@@ -1,5 +1,6 @@
 """
-Regenerates docs/architecture.png (the architecture diagram used in the README).
+Regenerates docs/architecture.png and docs/architecture.pdf (the architecture
+diagram used in the README and the challenge submission).
 
 Run from the repo root:
     python3 docs/make_architecture.py
@@ -88,6 +89,8 @@ def main():
     arrow(ax, (8.0, 3.95), (8.6, 1.55), "state + risk scores", label_offset=(-1.25, 0.0))
 
     fig.savefig(OUT_PATH, facecolor=BG, bbox_inches="tight", pad_inches=0.25)
+    fig.savefig(OUT_PATH.replace(".png", ".pdf"), facecolor=BG,
+                bbox_inches="tight", pad_inches=0.25)
     print(f"saved {OUT_PATH}")
 
 

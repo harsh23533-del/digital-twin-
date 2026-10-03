@@ -10,6 +10,102 @@ one evolving twin per patient and re-scores it on every new vitals reading, so
 risk is a continuously updated line, and every score comes with the factors
 that drove it.
 
+## Team Details
+
+**Team:** Digi Twin — Digital Twin Challenge 2026 (Happiest Health)
+
+| Member | Role | Email | Course | Graduating |
+|---|---|---|---|---|
+| Harsh Pandey | Team Leader | harshml916@gmail.com | B.Tech, Mechanical Engineering | 2027 |
+| Deepak Singh | Member | deepak.23528@knit.ac.in | B.Tech, Mechanical Engineering | 2027 |
+| Bhairavi Singh | Member | bhairavi.25325@knit.ac.in | B.Tech, Electrical Engineering | 2029 |
+
+## College / Incubator Information
+
+**Kamla Nehru Institute of Technology (KNIT), Sultanpur**, Uttar Pradesh, India.
+All team members are undergraduate B.Tech students at KNIT.
+
+## Project Title
+
+**Digi Twin — a live, explainable Cardiac Digital Twin**
+
+## Problem Statement
+
+Most cardiac risk tools score a patient once, from a single snapshot of data.
+They miss how a patient's risk changes between visits, and they rarely explain
+*why* a score is high. Clinicians and patients are left with a static number
+instead of a continuously updated picture.
+
+Digi Twin addresses this by keeping one evolving digital twin per patient. The
+twin combines the patient's EHR baseline with a rolling window of wearable
+vitals, re-scores cardiac risk on every new reading, and attaches the factors
+that drove each score.
+
+## Healthcare Use Case
+
+**Proactive cardiac risk monitoring and early warning.**
+
+- A patient's EHR profile (age, sex, chest-pain type, cholesterol, etc.) is
+  the twin's baseline; live heart rate and resting blood pressure keep it current.
+- Risk is re-scored on every tick, so a developing pattern (for example, high
+  resting BP with a heart rate that fails to rise) shows up as a rising risk
+  line rather than being missed between check-ups.
+- When risk crosses the alert threshold, a chronological alert log and a
+  flashing alarm banner notify the care team.
+- SHAP explanations show the top contributing factors for each score, so the
+  output is auditable rather than a black box.
+- Multiple patients can be followed side by side, each with independent state.
+
+## Technical Stack
+
+| Layer | Technology |
+|---|---|
+| Language | Python 3.12 |
+| App / dashboard | Streamlit, Plotly (charts and 3D patient figure) |
+| ML | XGBoost, scikit-learn (scaling, split, metrics) |
+| Explainability | SHAP (`TreeExplainer`) |
+| Data | pandas, NumPy, UCI Cleveland Heart Disease dataset |
+| Live device input | Web Bluetooth (browser-side heart-rate), see [`docs/live_watch.md`](docs/live_watch.md) |
+| Quality | flake8, assert-based test suite, GitHub Actions CI |
+
+## AI/ML Model or Framework Details
+
+- **Model:** XGBoost binary classifier (`n_estimators=200`, `max_depth=5`,
+  `learning_rate=0.05`, `subsample=0.8`, `colsample_bytree=0.8`).
+- **Data:** UCI Cleveland Heart Disease dataset (303 rows, about 297 after
+  dropping missing values). The target is binarised (`diagnosis > 0`).
+- **Features:** the 13 standard Cleveland features (age, sex, cp, trestbps,
+  chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal), standardised
+  with `StandardScaler`; 80/20 stratified split.
+- **Performance:** held-out AUC-ROC of about 0.92 on a single split.
+- **Rolling features:** `trestbps` is the mean resting BP over the last 10
+  readings and `thalach` is the maximum heart rate over the last 10 readings;
+  all other fields come from the patient's EHR baseline.
+- **Explainability:** `shap.TreeExplainer` runs on every tick and the dashboard
+  shows the top three contributing factors.
+- **Full details** (data, validation, limitations):
+  [`docs/methodology.md`](docs/methodology.md).
+
+## Demo Video
+
+Unlisted YouTube demo (15-20 minutes):
+**[REPLACE-WITH-YOUTUBE-LINK](https://www.youtube.com/)**
+
+## Architecture Diagram
+
+![Architecture](docs/architecture.png)
+
+PDF version: [`docs/architecture.pdf`](docs/architecture.pdf)
+
+## Presentation
+
+Project details and outcomes (PDF):
+[`docs/Digi_Twin_Presentation.pdf`](docs/Digi_Twin_Presentation.pdf)
+
+## Open-Source License
+
+Released under the [MIT License](LICENSE).
+
 ## Features
 
 - **Live cardiac risk** from an XGBoost model trained on the Cleveland Heart
@@ -43,8 +139,6 @@ runs load instantly. In the app, click **Auto-run** in the sidebar to watch the
 twin update live, or **Advance** to step through ticks manually.
 
 ## How it works
-
-![Architecture](docs/architecture.png)
 
 Each tick, the simulator emits a vitals reading, the twin engine stores it on
 the patient's state, and the cardiac module rebuilds the model input from the
